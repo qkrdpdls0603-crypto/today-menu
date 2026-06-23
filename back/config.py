@@ -4,7 +4,6 @@ from pathlib import Path
 
 load_dotenv()
 
-
 basedir = Path(__file__).resolve().parent
 
 class Config:
