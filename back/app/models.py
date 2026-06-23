@@ -2,6 +2,7 @@ from . import db
 from datetime import datetime
 import enum
 
+
 class RoleEnum(enum.Enum):
     USER  = "USER"
     ADMIN = "ADMIN"
@@ -60,7 +61,6 @@ class PartyMember(db.Model):
     user_id    = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     is_host    = db.Column(db.Boolean, default=False)
     joined_at  = db.Column(db.DateTime, default=datetime.utcnow)
-   
 
 class ChatMessage(db.Model):
     __tablename__ = 'chat_messages'
@@ -70,7 +70,6 @@ class ChatMessage(db.Model):
     sender_id  = db.Column(db.Integer, db.ForeignKey('users.user_id'),    nullable=False)
     content    = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     sender = db.relationship('User', foreign_keys=[sender_id])
 
 class RecommendationLog(db.Model):
@@ -81,4 +80,3 @@ class RecommendationLog(db.Model):
     input_context             = db.Column(db.JSON)
     recommended_restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.restaurant_id'), nullable=False)
     is_liked                  = db.Column(db.Boolean, default=False)
-

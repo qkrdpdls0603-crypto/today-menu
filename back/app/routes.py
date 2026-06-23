@@ -24,6 +24,7 @@ party_bp  = Blueprint('party',  __name__, url_prefix='/party')
 mypage_bp = Blueprint('mypage', __name__, url_prefix='/mypage')
 api_bp    = Blueprint('api',    __name__, url_prefix='/api')
 
+
 CATEGORIES = ['전체', '한식', '일식', '중식', '양식', '분식', '치킨', '피자', '카페', '술집']
 
 # ── 유틸 ──────────────────────────────────────────────────────────────────────
@@ -99,6 +100,7 @@ def serialize_message(m):
         'created_at': m.created_at.isoformat() if m.created_at else None,
     }
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
@@ -107,15 +109,18 @@ def index():
     trending     = Restaurant.query.order_by(Restaurant.avg_rating.desc()).limit(8).all()
     open_parties = Party.query.filter_by(status=StatusEnum.RECRUITING)\
                               .order_by(Party.created_at.desc()).limit(4).all()
+
     return jsonify({
         'trending':     [serialize_restaurant(r) for r in trending],
         'open_parties': [serialize_party(p) for p in open_parties],
         'categories':   CATEGORIES,
     })
+  
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTH
 # ══════════════════════════════════════════════════════════════════════════════
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data      = request.get_json()
@@ -201,9 +206,11 @@ def update_me():
     db.session.commit()
     return jsonify(serialize_user(user)), 200
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MENU / RESTAURANT
 # ══════════════════════════════════════════════════════════════════════════════
+
 @menu_bp.route('/', methods=['GET'])
 def list_restaurants():
     cat        = request.args.get('cat', '전체')
@@ -214,6 +221,7 @@ def list_restaurants():
         query = query.filter_by(category=cat)
     if q:
         query = query.filter(Restaurant.name.ilike(f'%{q}%'))
+
     pagination = query.paginate(page=page, per_page=12, error_out=False)
     return jsonify({
         'items': [serialize_restaurant(r) for r in pagination.items],
@@ -256,9 +264,11 @@ def delete_restaurant(rest_id):
     db.session.commit()
     return jsonify({'message': '삭제되었습니다.'}), 200
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PARTY
 # ══════════════════════════════════════════════════════════════════════════════
+
 @party_bp.route('/', methods=['GET'])
 def list_parties():
     status_str = request.args.get('status', 'RECRUITING')
@@ -373,9 +383,11 @@ def update_party_status(party_id):
     db.session.commit()
     return jsonify(serialize_party(party))
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MYPAGE
 # ══════════════════════════════════════════════════════════════════════════════
+
 @mypage_bp.route('/', methods=['GET'])
 @jwt_login_required
 def mypage():
@@ -429,7 +441,6 @@ def like_rec(log_id):
     log.is_liked = not log.is_liked
     db.session.commit()
     return jsonify({'liked': log.is_liked})
-
 
 # ── 관리자 전용 ───────────────────────────────────────────────────────────────
 @api_bp.route('/admin/users', methods=['GET'])
@@ -505,3 +516,4 @@ def chatbot():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
