@@ -13,7 +13,6 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__,
-
             template_folder='../../front/templates',
             static_folder='../../front/static')
 
