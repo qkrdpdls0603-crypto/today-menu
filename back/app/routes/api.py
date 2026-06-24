@@ -48,3 +48,17 @@ def like_rec(log_id):
     log.is_liked = not log.is_liked
     db.session.commit()
     return jsonify({'liked': log.is_liked})
+
+@api_bp.route('/restaurants/<int:id>', methods=['GET'])
+def get_restaurant_detail(id):
+    restaurant = Restaurant.query.get_or_404(id)
+    return jsonify({
+        'id': restaurant.restaurant_id,
+        'name': restaurant.name,
+        'address': restaurant.address,
+        'category': restaurant.category,
+        'parties': [
+            {'id': p.party_id, 'title': p.title, 'status': p.status.value} 
+            for p in restaurant.parties if p.status == StatusEnum.RECRUITING
+        ]
+    })

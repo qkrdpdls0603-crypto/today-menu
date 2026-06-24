@@ -9,12 +9,31 @@ import math
 
 party_bp = Blueprint('party', __name__, url_prefix='/party')
 
-@party_bp.route('/')
+@party_bp.route('/', methods=['GET'])
 def index():
-    status  = request.args.get('status', 'RECRUITING')
+    status = request.args.get('status', 'RECRUITING')
     parties = Party.query.filter_by(status=StatusEnum[status])\
                          .order_by(Party.created_at.desc()).all()
-    return render_template('party/index.html', parties=parties, status=status)
+    
+    party_list = []
+    for p in parties:
+        party_list.append({
+            'party_id': p.party_id,
+            'title': p.title,
+            'max_people': p.max_people,
+            'member_count': len(p.members),
+            'status': p.status.value,
+            'restaurant': {
+                'name': p.restaurant.name if p.restaurant else '알 수 없는 식당'
+            },
+            'host': {
+                'nickname': p.host.nickname if p.host else '알 수 없음'
+            },
+            'meeting_time': p.meeting_time.isoformat() if p.meeting_time else None,
+            'is_member': any(m.user_id == session.get('user_id') for m in p.members)
+        })
+
+    return jsonify(party_list)
 
 @party_bp.route('/create', methods=['GET', 'POST'])
 @login_required
