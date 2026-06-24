@@ -41,6 +41,16 @@ export async function kakaoLogin(kakaoAccessToken) {
   return data
 }
 
+
+// ── KAKAO SEARCH ─────────────────────────────────────────────
+export async function searchKakao({ q, lat, lng, radius = 1000 }) {
+  const { data } = await api.get('/api/kakao/search', {
+    params: { q, lat, lng, radius }
+  })
+  return data   // { places, total }
+}
+
+
 /** 네이버 소셜 로그인 — 네이버 SDK에서 받은 access_token 전달 */
 export async function naverLogin(naverAccessToken) {
   const { data } = await api.post('/auth/naver', { access_token: naverAccessToken })

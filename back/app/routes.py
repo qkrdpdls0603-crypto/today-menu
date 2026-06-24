@@ -1,5 +1,6 @@
 import os
 import math
+import requests as req_lib
 from datetime import datetime
 from functools import wraps
 
@@ -695,10 +696,12 @@ def chatbot():
 # ══════════════════════════════════════════════════════════════════════════════
 # 카카오 로컬 API 연동
 # ══════════════════════════════════════════════════════════════════════════════
-import requests as req_lib
+
 
 @api_bp.route('/kakao/search', methods=['GET'])
 def kakao_search():
+    print(" DEBUG:", request.args)
+    print(" DEBUG q:", request.args.get('q'))
     """
     카카오 로컬 API — 키워드로 음식점 검색
     GET /api/kakao/search?q=삼겹살&lat=37.5&lng=126.9&radius=1000

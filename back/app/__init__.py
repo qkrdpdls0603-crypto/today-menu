@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -13,24 +14,22 @@ migrate = Migrate()
 jwt     = JWTManager()
 
 def create_app():
+    # instance_path를 절대경로로 지정
     app = Flask(
         __name__,
         instance_relative_config=True,
-        instance_path=os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            '..',
-            'instance'
-        )
-
+        instance_path=str(Path(__file__).resolve().parent.parent / 'instance')
     )
 
     app.config.from_object('config.Config')
+
+    # instance 폴더 보장 (Windows 경로 문제 방지)
+    Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # React dev 서버 허용
     CORS(
         app,
         resources={r'/*': {'origins': ['http://localhost:5173', 'http://127.0.0.1:5173']}},

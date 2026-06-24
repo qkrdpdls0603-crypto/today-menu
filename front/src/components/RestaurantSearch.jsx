@@ -17,20 +17,31 @@ export default function RestaurantSearch({ userLoc, onRegister }) {
   const [regLoading, setRegLoading] = useState(false)
   const [message,  setMessage]  = useState('')
 
-  // ── 검색 ─────────────────────────────────────────────────────────────────
+    // ── 검색 ─────────────────────────────────────────────────────────────────
   const handleSearch = async (e) => {
     e?.preventDefault()
     if (!query.trim()) return
+
     setLoading(true)
     setPlaces([])
     setSelected(null)
     setMessage('')
+
     try {
-      const params = { q: query }
-      if (userLoc) { params.lat = userLoc.lat; params.lng = userLoc.lng; params.radius = 2000 }
+      const cleanQuery = query.split('&')[0]  // ✅ 이 줄 추가
+
+      const params = { q: cleanQuery }
+      if (userLoc) {
+        params.lat = userLoc.lat
+        params.lng = userLoc.lng
+        params.radius = 2000
+      }
+
       const { data } = await api.get('/api/kakao/search', { params })
+
       setPlaces(data.places ?? [])
       if (!data.places?.length) setMessage('검색 결과가 없습니다.')
+
     } catch (e) {
       setMessage(e.response?.data?.error ?? '검색에 실패했습니다.')
     } finally {
