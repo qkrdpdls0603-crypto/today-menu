@@ -40,18 +40,20 @@ echo.
 echo [3/6] instance 폴더 생성...
 if not exist "%BACK%\instance" mkdir "%BACK%\instance"
 
+
 echo.
-echo [4/6] DB 초기화...
+echo [4/6] DB 테이블 생성...
+
 cd /d "%BACK%"
 
-if not exist "%BACK%\migrations" (
-    %PYTHON% -m flask --app run db init
-    %PYTHON% -m flask --app run db migrate -m init
-) else (
-    %PYTHON% -m flask --app run db migrate -m update
-)
+%PYTHON% -c "from run import app; from app import db; app.app_context().push(); db.create_all()"
 
-%PYTHON% -m flask --app run db upgrade
+if errorlevel 1 (
+    echo [오류] DB 생성 실패
+    pause
+    exit /b 1
+)
+echo 완료
 
 echo.
 echo [5/6] npm install...

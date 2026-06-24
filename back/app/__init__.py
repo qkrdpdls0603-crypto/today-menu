@@ -13,16 +13,29 @@ migrate = Migrate()
 jwt     = JWTManager()
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(
+        __name__,
+        instance_relative_config=True,
+        instance_path=os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            '..',
+            'instance'
+        )
+
+    )
+
     app.config.from_object('config.Config')
 
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # React 개발 서버(:5173)와 통신 허용
-    CORS(app, resources={r'/*': {'origins': ['http://localhost:5173', 'http://127.0.0.1:5173']}},
-         supports_credentials=True)
+    # React dev 서버 허용
+    CORS(
+        app,
+        resources={r'/*': {'origins': ['http://localhost:5173', 'http://127.0.0.1:5173']}},
+        supports_credentials=True
+    )
 
     from app.routes import main_bp, auth_bp, menu_bp, party_bp, mypage_bp, api_bp
     app.register_blueprint(main_bp)
