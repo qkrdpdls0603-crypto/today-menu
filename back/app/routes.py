@@ -370,6 +370,21 @@ def delete_restaurant(rest_id):
     db.session.commit()
     return jsonify({'message': '삭제되었습니다.'}), 200
 
+
+
+# ── 게임용 랜덤 메뉴 API ────────────────────────────────────────────────────
+@menu_bp.route('/random', methods=['GET'])
+def random_menus():
+    """GET /menu/random?count=64&cat=전체 — 게임용 랜덤 메뉴"""
+    count = min(request.args.get('count', 64, type=int), 128)
+    cat   = request.args.get('cat', '전체')
+    query = Restaurant.query
+    if cat != '전체':
+        query = query.filter_by(category=cat)
+    from sqlalchemy import func
+    items = query.order_by(func.random()).limit(count).all()
+    return jsonify({'items': [serialize_restaurant(r) for r in items]}), 200
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PARTY
 # ══════════════════════════════════════════════════════════════════════════════
@@ -396,6 +411,7 @@ def list_parties():
     return jsonify([serialize_party(p, viewer_id) for p in parties])
 
 
+
 @party_bp.route('/<int:party_id>', methods=['GET'])
 def get_party(party_id):
     party    = Party.query.get_or_404(party_id)
@@ -413,6 +429,7 @@ def get_party(party_id):
     data          = serialize_party(party, viewer_id)
     data['messages'] = [serialize_message(m) for m in messages]
     return jsonify(data)
+
 
 
 @party_bp.route('/', methods=['POST'])
@@ -442,6 +459,7 @@ def create_party():
     return jsonify(serialize_party(party, host_id)), 201
 
 
+
 @party_bp.route('/<int:party_id>/join', methods=['POST'])
 @jwt_login_required
 def join_party(party_id):
@@ -462,6 +480,7 @@ def join_party(party_id):
     return jsonify({'message': '파티에 참여했습니다! 매너온도 +0.5°', 'manner_score': user.manner_score}), 200
 
 
+
 @party_bp.route('/<int:party_id>/chat', methods=['POST'])
 @jwt_login_required
 def party_chat(party_id):
@@ -473,6 +492,7 @@ def party_chat(party_id):
     db.session.add(msg)
     db.session.commit()
     return jsonify(serialize_message(msg)), 201
+
 
 
 @party_bp.route('/<int:party_id>/status', methods=['PATCH'])
@@ -792,8 +812,6 @@ def kakao_search():
         return jsonify({'places': places, 'total': data['meta']['total_count']}), 200
 
     except Exception as e:
-        print("KEY:", repr(kakao_key))
-        print("❌ ERROR:", e)
         return jsonify({'error': str(e)}), 500
 
 

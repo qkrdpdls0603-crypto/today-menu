@@ -56,6 +56,11 @@ export async function createRestaurant(payload) {
   return data
 }
 
+export async function getRandomMenus(count = 64, cat = '전체') {
+  const { data } = await api.get('/menu/random', { params: { count, cat } })
+  return data.items ?? []
+}
+
 export async function deleteRestaurant(restId) {
   const { data } = await api.delete(`/menu/${restId}`)
   return data
