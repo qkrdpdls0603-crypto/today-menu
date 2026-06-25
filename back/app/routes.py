@@ -69,6 +69,8 @@ def serialize_user(u):
     }
 
 def serialize_restaurant(r):
+    # models.py에 phone 컬럼이 별도로 존재
+    phone = getattr(r, 'phone', None) or r.description or ''
     return {
         'id':          r.restaurant_id,
         'name':        r.name,
@@ -77,7 +79,7 @@ def serialize_restaurant(r):
         'longitude':   float(r.longitude) if r.longitude else None,
         'category':    r.category,
         'description': r.description,
-        'phone':       r.description,   # description에 전화번호 저장됨
+        'phone':       phone,
         'avg_rating':  r.avg_rating,
     }
 
@@ -843,7 +845,8 @@ def kakao_register_restaurant():
         latitude=data.get('lat'),
         longitude=data.get('lng'),
         category=category,
-        description=data.get('phone', ''),
+        phone=data.get('phone', ''),
+        description='',
         avg_rating=0.0,
     )
     db.session.add(rest)
