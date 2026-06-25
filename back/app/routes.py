@@ -75,6 +75,7 @@ def serialize_restaurant(r):
         'longitude':   float(r.longitude) if r.longitude else None,
         'category':    r.category,
         'description': r.description,
+        'phone':       r.description,   # description에 전화번호 저장됨
         'avg_rating':  r.avg_rating,
     }
 
@@ -307,10 +308,12 @@ def list_restaurants():
         query = query.filter(Restaurant.name.ilike(f'%{q}%'))
     pagination = query.paginate(page=page, per_page=12, error_out=False)
     return jsonify({
-        'items': [serialize_restaurant(r) for r in pagination.items],
-        'total': pagination.total,
-        'pages': pagination.pages,
-        'page':  pagination.page,
+        'items':    [serialize_restaurant(r) for r in pagination.items],
+        'total':    pagination.total,
+        'pages':    pagination.pages,
+        'page':     pagination.page,
+        'has_prev': pagination.has_prev,
+        'has_next': pagination.has_next,
         'categories': CATEGORIES,
     })
 

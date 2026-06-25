@@ -12,7 +12,7 @@ set ROOT=%~dp0
 set BACK=%ROOT%back
 set FRONT=%ROOT%front
 
-echo [1/6] Python 가상환경 생성 중...
+echo [1/7] Python 가상환경 생성 중...
 if exist "%ROOT%.venv" (
     echo 이미 존재 - 건너뜀
 ) else (
@@ -28,7 +28,7 @@ set PYTHON=%ROOT%.venv\Scripts\python.exe
 set PIP=%ROOT%.venv\Scripts\pip.exe
 
 echo.
-echo [2/6] 패키지 설치 중...
+echo [2/7] 패키지 설치 중...
 %PIP% install -r "%BACK%\requirements.txt"
 if errorlevel 1 (
     echo [오류] pip install 실패
@@ -37,12 +37,12 @@ if errorlevel 1 (
 )
 
 echo.
-echo [3/6] instance 폴더 생성...
+echo [3/7] instance 폴더 생성...
 if not exist "%BACK%\instance" mkdir "%BACK%\instance"
 
 
 echo.
-echo [4/6] DB 테이블 생성...
+echo [4/7] DB 테이블 생성...
 
 cd /d "%BACK%"
 
@@ -56,7 +56,7 @@ if errorlevel 1 (
 echo 완료
 
 echo.
-echo [5/6] npm install...
+echo [5/7] npm install...
 cd /d "%FRONT%"
 call npm install
 if errorlevel 1 (
@@ -66,9 +66,22 @@ if errorlevel 1 (
 )
 
 echo.
-echo [6/6] 초기 데이터 넣기...
+echo [6/7] 초기 데이터 넣기...
 cd /d "%BACK%"
 %PYTHON% seed.py
+
+
+:: 7. 수원 상가 CSV 임포트 (파일이 back 폴더에 있을 때만 실행)
+echo.
+echo [7/7] 수원지역 상가 데이터 임포트...
+if exist "%BACK%\수원지역_상가_정보.csv" (
+    %PYTHON% import_csv.py 수원지역_상가_정보.csv
+) else (
+    echo       수원지역_상가_정보.csv 파일이 back 폴더에 없습니다.
+    echo       나중에 직접 실행하세요:
+    echo         cd back
+    echo         python import_csv.py 수원지역_상가_정보.csv
+)
 
 echo.
 echo ================================================
