@@ -1,3 +1,4 @@
+// src/pages/Home.jsx
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getRestaurants, getNearby } from '../api/services'
@@ -24,7 +25,9 @@ export default function Home() {
   const bannerTimer = useRef(null)
 
   useEffect(() => {
-    getRestaurants({ cat: '전체', page: 1 }).then((d) => setTrending(d.items ?? [])).catch(() => { })
+    getRestaurants({ cat: '전체', page: 1 })
+      .then((d) => setTrending(d.items ?? []))
+      .catch((err) => console.error('trending 로드 실패:', err))
   }, [])
 
   // 배너 자동 슬라이드
