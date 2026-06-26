@@ -1,461 +1,172 @@
-import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getMyPage, toggleLike, logout, saveFavoriteLocations } from '../api/services'
-import { useAuth } from '../App'
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
-export default function MyPage() {
-  const navigate = useNavigate()
-  const { user: authUser, logout: ctxLogout } = useAuth()
-  const [data,      setData]      = useState(null)
-  const [activeTab, setActiveTab]   = useState('liked')  // liked | disliked
-  const [savedLocs, setSavedLocs]   = useState([])        // 저장된 장소 3개
-  const [locSearch, setLocSearch]   = useState('')         // 장소 검색 입력
-  const [locResults, setLocResults] = useState([])         // 카카오 검색 결과
-  const [locLoading, setLocLoading] = useState(false)
-  const [locMsg,     setLocMsg]     = useState('')
-  const gauge2Ref = useRef(null)
+const MyPage = () => {
+  const [userData, setUserData] = useState(null);
+  const [myParties, setMyParties] = useState([]);
+  const [recLogs, setRecLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 💡 [CORS 완화] __init__.py의 허용 도메인과 싱크를 맞추기 위해 localhost 대신 127.0.0.1로 고정합니다.
+  const BACKEND_URL = 'http://127.0.0.1:5000';
 
   useEffect(() => {
-    getMyPage()
-      .then((d) => {
-        setData(d)
-        setSavedLocs(d.user.saved_locations ?? [])
-      })
-      .catch((err) => console.error('마이페이지 로드 실패:', err))
-  }, [])
+    const fetchMyPageData = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          setError('로그인이 필요합니다.');
+          setLoading(false);
+          return;
+        }
 
-  // 매너 게이지 SVG 애니메이션
-  useEffect(() => {
-    if (!data || !gauge2Ref.current) return
-    const score = data.user.manner_score
-    const r = 40, circ = 2 * Math.PI * r
-    const offset = circ * (1 - Math.min(score / 50, 1))
-    const circle = gauge2Ref.current.querySelector('circle.progress')
-    if (circle) {
-      circle.style.strokeDasharray  = circ
-      circle.style.strokeDashoffset = offset
+        // 💡 지정한 BACKEND_URL(127.0.0.1) 주소로 정확하게 API를 찌릅니다.
+        const res = await axios.get(`${BACKEND_URL}/mypage/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        setUserData(res.data.user);
+        setMyParties(res.data.my_parties || []);
+        setRecLogs(res.data.rec_logs || []);
+      } catch (err) {
+        console.error("마이페이지 데이터를 불러오는데 실패했습니다.", err);
+        // 401(토큰만료/인증불가) 에러 발생 시 처리
+        if (err.response?.status === 401 || err.response?.status === 422) {
+          setError('인증 세션이 만료되었거나 올바르지 않습니다. 로그아웃 후 다시 로그인 해주세요.');
+        } else {
+          setError(err.response?.data?.message || '데이터를 불러오는 중 오류가 발생했습니다.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMyPageData();
+  }, []);
+
+  if (loading) return <div style={styles.center}>데이터를 불러오는 중입니다...</div>;
+  if (error) return <div style={{ ...styles.center, color: 'red', textAlign: 'center', lineHeight: '1.5' }}>{error}</div>;
+  if (!userData) return <div style={styles.center}>유저 정보가 없습니다.</div>;
+
+  // 💡 [데이터 클렌징] DB에 문장이나 콤마 형태로 잘못 꼬여 들어간 텍스트들을 정상 배열로 복구하고 중복을 제거합니다.
+  const processTags = (rawPrefs) => {
+    if (!rawPrefs) return [];
+    if (Array.isArray(rawPrefs)) {
+      // ["오이, 고등어, 낙지", "한식"] 형태로 들어올 경우를 대비해 전부 분할(flatMap)합니다.
+      const flatList = rawPrefs.flatMap(item => typeof item === 'string' ? item.split(',') : item);
+      // 공백 제거 후, 중복을 원천 차단하기 위해 Set 객체를 활용합니다.
+      return [...new Set(flatList.map(v => v.trim()).filter(Boolean))];
     }
-  }, [data])
+    return [];
+  };
 
-  // ── 저장 장소 카카오 검색 ──────────────────────────────────────────────────
-  const searchPlace = async () => {
-    if (!locSearch.trim()) return
-    setLocLoading(true); setLocResults([]); setLocMsg('')
-    try {
-      const res = await fetch(
-        `/api/kakao/search?q=${encodeURIComponent(locSearch.split('&')[0])}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } }
-      )
-      const json = await res.json()
-      setLocResults(json.places ?? [])
-      if (!(json.places?.length)) setLocMsg('검색 결과가 없습니다.')
-    } catch { setLocMsg('검색에 실패했습니다.') }
-    finally { setLocLoading(false) }
-  }
-
-  const addLoc = async (place) => {
-    if (savedLocs.length >= 3) { setLocMsg('장소는 최대 3개까지 저장할 수 있습니다.'); return }
-    const newLocs = [...savedLocs, {
-      name: place.name,
-      address: place.address,
-      lat: place.lat,
-      lng: place.lng,
-    }]
-    await saveFavoriteLocations(newLocs)
-    setSavedLocs(newLocs)
-    setLocResults([]); setLocSearch(''); setLocMsg(`✅ "${place.name}" 저장됨`)
-  }
-
-  const removeLoc = async (idx) => {
-    const newLocs = savedLocs.filter((_, i) => i !== idx)
-    await saveFavoriteLocations(newLocs)
-    setSavedLocs(newLocs)
-    setLocMsg('장소가 삭제됐습니다.')
-  }
-
-  // ── 회원 탈퇴 ────────────────────────────────────────────────────────────
-  const handleWithdraw = async () => {
-    if (!window.confirm('정말로 회원 탈퇴를 하시겠습니까? 모든 정보가 삭제됩니다.')) return
-    try {
-      await logout()
-      ctxLogout()
-      alert('회원 탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.')
-      navigate('/')
-    } catch {
-      alert('탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.')
-    }
-  }
-
-  // ── 찜 토글 ──────────────────────────────────────────────────────────────
-  const handleLike = async (logId) => {
-    const res = await toggleLike(logId)
-    setData((d) => ({
-      ...d,
-      rec_logs: d.rec_logs.map((r) => r.log_id === logId ? { ...r, is_liked: res.liked } : r),
-    }))
-  }
-
-  if (!data) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>로딩 중...</div>
-  )
-
-  const { user, my_parties, rec_logs } = data
-  const liked_logs = rec_logs.filter((r) => r.is_liked)
-  const dislikes   = user.preferences?.dislikes ?? []
-  const mannerScore = user.manner_score
-
-  // 히어로 게이지 (SVG inline)
-  const R    = 36
-  const circ = 2 * Math.PI * R
-  const heroOffset = circ * (1 - Math.min(mannerScore / 50, 1))
+  const likes = processTags(userData.preferences?.likes);
+  const dislikes = processTags(userData.preferences?.dislikes);
+  const savedLocations = userData.preferences?.saved_locations || [];
 
   return (
-    <>
-      <h1 style={{ fontSize: '2.4rem', fontWeight: 900, marginBottom: 24 }}>마이 메이지</h1>
-
-      {/* ── HERO BANNER ── */}
-      <div className="mypage-hero">
-        <div className="mypage-hero-inner">
-          <div className="profile-avatar">{user.nickname?.[0]}</div>
-          <div className="mypage-hero-text" style={{ flex: 1 }}>
-            <div style={{ fontSize: '.78rem', opacity: .55, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>MY PAGE</div>
-            <h2>나의 메뉴 취향과 활동을 한눈에 확인하세요.</h2>
-            <p>찜한 메뉴, 프로필, 추천 기록, 매칭 내역을 관리하는 마이페이지입니다.</p>
-            <Link to="/mypage/edit" className="btn btn-sm"
-              style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' }}>
-              프로필 수정 →
-            </Link>
-          </div>
-          {/* 매너온도 게이지 */}
-          <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <div style={{ position: 'relative', width: 90, height: 90 }}>
-              <svg width="90" height="90" viewBox="0 0 90 90">
-                <circle cx="45" cy="45" r={R} fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="7"/>
-                <circle cx="45" cy="45" r={R} fill="none" stroke="#F6AD55" strokeWidth="7"
-                  strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={heroOffset}
-                  transform="rotate(-90 45 45)" style={{ transition: 'stroke-dashoffset 1s' }} />
-              </svg>
-              <div className="manner-num" style={{ color: '#fff' }}>
-                <span className="manner-val">{mannerScore}</span>
-                <small>°C</small>
-              </div>
-            </div>
-            <div style={{ color: 'rgba(255,255,255,.65)', fontSize: '.75rem', marginTop: 4 }}>매너온도</div>
-          </div>
-        </div>
+    <div style={styles.container}>
+      {/* 1. 프로필 섹션 */}
+      <div style={styles.card}>
+        <h2 style={styles.title}>{userData.nickname}님의 프로필</h2>
+        
+        <p style={styles.text}><strong>이메일:</strong> {userData.email}</p>
+        <p style={styles.text}><strong>매너 지수:</strong> {userData.manner_score}°C</p>
+        <p style={styles.text}><strong>알러지/제외 성분:</strong> {userData.allergies || '없음'}</p>
       </div>
 
-      {/* ── STAT ROW ── */}
-      <div className="stat-row">
-        <div className="stat-card">
-          <div className="stat-num">{(user.preferences?.likes ?? []).length}</div>
-          <div className="stat-label">찜한 메뉴</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            좋아요 {(user.preferences?.likes ?? []).length}개 · 싫어요 {dislikes.length}개
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-num">{rec_logs.length}</div>
-          <div className="stat-label">추천 활동</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>최근 추천 {rec_logs.length}회</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-num">{my_parties.length}</div>
-          <div className="stat-label">매칭 기록</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>완료된 파티 {my_parties.length}건</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-num" style={{ color: 'var(--color-accent)' }}>{mannerScore}</div>
-          <div className="stat-label">매너점수</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>당근처럼 {mannerScore}점</div>
-        </div>
-      </div>
-
-      {/* ── PROFILE + MANNER SCORE ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 16 }}>
-
-        {/* 프로필 */}
-        <div className="profile-section">
-          <div className="flex-between mb-16">
-            <h3>프로필</h3>
-            <Link to="/mypage/edit" className="btn btn-sm btn-secondary">수정</Link>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 16, alignItems: 'start' }}>
-            <div className="profile-avatar">{user.nickname?.[0]}</div>
-            <div>
-              {[
-                ['성별',    user.preferences?.gender ?? '미설정'],
-                ['선호메뉴', (user.preferences?.likes ?? []).slice(0, 3).join(', ') || '없음'],
-                ['알러지',  (user.allergies ?? '').split(',').filter(Boolean).slice(0, 2).join(', ') || '없음'],
-              ].map(([label, val]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--bg-surface)', fontSize: '.88rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
-                  <span style={{ fontWeight: 700 }}>{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 매너점수 */}
-        <div className="profile-section">
-          <div className="flex-between mb-16">
-            <h3>매너점수</h3>
-            <a href="#" className="btn btn-sm btn-secondary">내역</a>
-          </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div ref={gauge2Ref} style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
-              <svg width="100" height="100" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--bg-surface)" strokeWidth="8"/>
-                <circle className="progress" cx="50" cy="50" r="40" fill="none"
-                  stroke="var(--color-accent)" strokeWidth="8" strokeLinecap="round"
-                  transform="rotate(-90 50 50)"/>
-              </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '1.5rem', fontWeight: 800, lineHeight: 1 }}>{mannerScore}</span>
-                <small style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>점</small>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>따뜻한 식사 메이트</div>
-              <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                약속, 공감, 후기 기반으로 쌓아두는 점수
-              </p>
-            </div>
-          </div>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
-          {[
-            ['파티 참여', (my_parties.length * 0.5).toFixed(1)],
-            ['후기 작성', (liked_logs.length * 0.3).toFixed(1)],
-            ['약속 이행', '1.0'],
-          ].map(([label, val]) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '.82rem', color: 'var(--text-muted)' }}>
-              <span>{label}</span>
-              <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>+{val}°</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 메뉴 찜목록 ── */}
-      <div className="profile-section">
-        <div className="flex-between mb-16">
-          <h3>메뉴 찜목록</h3>
-          <Link to="/menu" className="btn btn-sm btn-secondary">선택보기 →</Link>
-        </div>
-
-        {/* 탭 */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {[['liked','좋아요'], ['disliked','싫어요']].map(([key, label]) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              style={{
-                padding: '7px 20px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontWeight: 700, fontSize: '.88rem',
-                background: activeTab === key ? 'var(--color-secondary)' : 'var(--bg-surface)',
-                color: activeTab === key ? '#fff' : 'var(--text-muted)',
-              }}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === 'liked' && (
-          liked_logs.length > 0 ? (
-            <div className="grid-4">
-              {liked_logs.slice(0, 4).map((log) => (
-                <Link to={`/menu/${log.recommended_restaurant_id}`} className="card rest-card" key={log.log_id}>
-                  <div className="card-img" style={{ fontSize: '2rem' }}>🍴</div>
-                  <div className="card-body">
-                    <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
-                    <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>
-                    <div className="rest-addr" style={{ marginTop: 4 }}>
-                      {(log.restaurant?.address ?? '').slice(0, 20)}{(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+      {/* 2. 취향 정보 섹션 */}
+      <div style={styles.card}>
+        <h3 style={styles.sectionTitle}>🍽️ 나의 음식 취향</h3>
+        
+        <div style={styles.subSection}>
+          <h4 style={styles.likeTitle}>👍 좋아하는 음식</h4>
+          {likes.length > 0 ? (
+            <div style={styles.tagContainer}>
+              {likes.map((item, idx) => <span key={idx} style={styles.likeTag}>{item}</span>)}
             </div>
           ) : (
-            <div className="empty-state">
-              <div className="empty-icon">❤️</div>
-              <p>아직 찜한 메뉴가 없습니다</p>
-              <Link to="/menu" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>메뉴 둘러보기</Link>
-            </div>
-          )
-        )}
+            <p style={styles.emptyText}>등록된 선호 음식이 없습니다.</p>
+          )}
+        </div>
 
-        {activeTab === 'disliked' && (
-          dislikes.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '16px 0' }}>
-              {dislikes.map((d) => (
-                <span key={d} style={{ padding: '4px 12px', borderRadius: 16, background: '#FFF5F5', color: 'var(--color-danger)', fontSize: '.78rem', fontWeight: 600 }}>
-                  {d}
-                </span>
-              ))}
+        <div style={styles.subSection}>
+          <h4 style={styles.dislikeTitle}>👎 기피하는 음식</h4>
+          {dislikes.length > 0 ? (
+            <div style={styles.tagContainer}>
+              {dislikes.map((item, idx) => <span key={idx} style={styles.dislikeTag}>{item}</span>)}
             </div>
           ) : (
-            <div className="empty-state"><div className="empty-icon">👎</div><p>싫어하는 음식이 없습니다</p></div>
-          )
-        )}
-      </div>
-
-      {/* ── 활동내역 ── */}
-      <div className="profile-section">
-        <div className="flex-between mb-16">
-          <h3>활동내역</h3>
-          <a href="#" className="btn btn-sm btn-secondary">선택보기 →</a>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          {rec_logs.slice(0, 3).map((log) => (
-            <div key={log.log_id} style={{ display: 'flex', gap: 14, padding: 14, background: 'var(--bg-white)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)' }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFF5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🤖</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 2 }}>추천</div>
-                <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{log.restaurant?.name ?? '식당 추천'}</div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  {log.restaurant?.category ?? ''} · {log.is_liked ? '찜함' : '추천만'}
-                </div>
-              </div>
-              <button onClick={() => handleLike(log.log_id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}>
-                {log.is_liked ? '❤️' : '🤍'}
-              </button>
-            </div>
-          ))}
-          {my_parties.slice(0, 2).map((p) => (
-            <div key={p.party_id} style={{ display: 'flex', gap: 14, padding: 14, background: 'var(--bg-white)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)' }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F0FFF4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>👥</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 2 }}>매칭/파티</div>
-                <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{p.title}</div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  {p.restaurant?.name ?? ''} · {p.meeting_time ? new Date(p.meeting_time).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
-                </div>
-              </div>
-              <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                {p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR') : ''}
-              </div>
-            </div>
-          ))}
-          {rec_logs.length === 0 && my_parties.length === 0 && (
-            <div className="empty-state" style={{ gridColumn: '1/-1' }}>
-              <div className="empty-icon">📋</div>
-              <p>아직 활동 내역이 없습니다</p>
-            </div>
+            <p style={styles.emptyText}>등록된 기피 음식이 없습니다.</p>
           )}
         </div>
       </div>
 
-      {/* ── 저장 장소 ── */}
-      <div className="profile-section">
-        <div className="flex-between mb-16">
-          <h3>📍 저장 장소 <span style={{ fontSize: '.8rem', color: 'var(--text-muted)', fontWeight: 400 }}>({savedLocs.length}/3)</span></h3>
-        </div>
-        <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginBottom: 14 }}>
-          자주 가는 장소를 최대 3개 저장하면 챗봇에서 선택해 근처 맛집을 추천받을 수 있어요.
-        </p>
-
-        {/* 저장된 장소 목록 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {savedLocs.map((loc, idx) => (
-            <div key={idx} style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 14px',
-              border: '1px solid var(--border-color)',
-            }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                background: ['#E53E3E','#3182CE','#38A169'][idx],
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '.75rem', fontWeight: 800,
-              }}>
-                {idx + 1}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{loc.name}</div>
-                <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {loc.address}
-                </div>
-              </div>
-              <button onClick={() => removeLoc(idx)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', padding: 4, flexShrink: 0 }}>
-                ✕
-              </button>
-            </div>
-          ))}
-          {savedLocs.length < 3 && Array.from({ length: 3 - savedLocs.length }).map((_, i) => (
-            <div key={`empty-${i}`} style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: 'transparent', borderRadius: 8, padding: '10px 14px',
-              border: '1.5px dashed var(--border-color)',
-            }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.75rem', color: 'var(--text-light)', flexShrink: 0 }}>
-                {savedLocs.length + i + 1}
-              </div>
-              <div style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>장소를 추가하세요</div>
-            </div>
-          ))}
-        </div>
-
-        {/* 장소 검색 */}
-        {savedLocs.length < 3 && (
-          <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <input
-                className="form-control" style={{ flex: 1 }}
-                placeholder="장소명 검색 (예: 우리집, 회사, 학교...)"
-                value={locSearch}
-                onChange={(e) => setLocSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && searchPlace()}
-              />
-              <button className="btn btn-secondary btn-sm" onClick={searchPlace} disabled={locLoading} style={{ flexShrink: 0 }}>
-                {locLoading ? '...' : '🔍 검색'}
-              </button>
-            </div>
-
-            {locMsg && (
-              <div style={{ fontSize: '.8rem', padding: '6px 10px', borderRadius: 6, marginBottom: 8,
-                background: locMsg.startsWith('✅') ? '#F0FFF4' : '#FFF5F5',
-                color: locMsg.startsWith('✅') ? '#276749' : '#C53030' }}>
-                {locMsg}
-              </div>
-            )}
-
-            {locResults.length > 0 && (
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
-                {locResults.slice(0, 6).map((p) => (
-                  <div key={p.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderBottom: '1px solid var(--bg-surface)',
-                    background: 'var(--bg-white)',
-                  }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '.88rem' }}>{p.name}</div>
-                      <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div>
-                      {p.dist > 0 && <div style={{ fontSize: '.72rem', color: 'var(--color-success)', fontWeight: 600 }}>🚶 {p.dist}m</div>}
-                    </div>
-                    <button className="btn btn-primary btn-sm" style={{ fontSize: '.75rem', flexShrink: 0 }}
-                      onClick={() => addLoc(p)}>
-                      + 저장
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* 3. 저장된 장소 섹션 */}
+      <div style={styles.card}>
+        <h3 style={styles.sectionTitle}>📍 저장된 장소 (최대 3개)</h3>
+        {savedLocations.length > 0 ? (
+          <ul style={styles.list}>
+            {savedLocations.map((loc, idx) => (
+              <li key={idx} style={styles.listItem}>
+                <strong>{loc.name}</strong> <span style={styles.addressText}>({loc.address || '주소 없음'})</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={styles.emptyText}>자주 가는 장소를 등록해 보세요.</p>
         )}
       </div>
 
-      {/* ── 회원 탈퇴 ── */}
-      <div style={{ marginTop: 56, borderTop: '1px solid var(--border-color)', paddingTop: 24, textAlign: 'right' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '.85rem', marginBottom: 8 }}>
-          더 이상 서비스를 이용하고 싶지 않으신가요?
-        </p>
-        <button onClick={handleWithdraw}
-          style={{ background: '#E53E3E', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 12px', fontSize: '.85rem', fontWeight: 700, cursor: 'pointer' }}>
-          🚨 회원 탈퇴하기
-        </button>
+      {/* 4. 나의 밥친구 파티 내역 */}
+      <div style={styles.card}>
+        <h3 style={styles.sectionTitle}>👥 참여 중인 파티 목록 (최근 5개)</h3>
+        {myParties.length > 0 ? (
+          <div style={styles.grid}>
+            {myParties.map((party) => (
+              <div key={party.party_id} style={styles.partyItem}>
+                <h4 style={{ margin: '0 0 8px 0' }}>{party.title}</h4>
+                <p style={styles.smallText}>📍 식당: {party.restaurant?.name || '미정'}</p>
+                <p style={styles.smallText}>⏰ 일시: {new Date(party.meeting_time).toLocaleString()}</p>
+                <p style={styles.smallText}>👥 인원: {party.member_count} / {party.max_people}명</p>
+                <span style={party.status === 'RECRUITING' ? styles.badgeOpen : styles.badgeClose}>
+                  {party.status === 'RECRUITING' ? '모집중' : '마감'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={styles.emptyText}>참여 중인 밥친구 파티가 없습니다.</p>
+        )}
       </div>
-    </>
-  )
-}
+    </div>
+  );
+};
+
+// ── 컴포넌트 내부 스타일 가이드 ──────────────────────────────────
+const styles = {
+  container: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif', backgroundColor: '#f9f9f9' },
+  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', fontSize: '18px' },
+  card: { backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '20px' },
+  title: { margin: '0 0 15px 0', color: '#333' },
+  sectionTitle: { margin: '0 0 15px 0', borderBottom: '2px solid #eee', paddingBottom: '8px', color: '#222' },
+  subSection: { marginBottom: '15px' },
+  likeTitle: { margin: '0 0 8px 0', color: '#1890ff' },
+  dislikeTitle: { margin: '0 0 8px 0', color: '#ff4d4f' },
+  text: { margin: '6px 0', color: '#555', fontSize: '15px' },
+  smallText: { margin: '4px 0', color: '#666', fontSize: '13px' },
+  addressText: { color: '#888', fontSize: '13px' },
+  emptyText: { color: '#aaa', fontSize: '14px', margin: '5px 0' },
+  list: { listStyle: 'none', padding: 0, margin: 0 },
+  listItem: { padding: '10px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', fontSize: '14px' },
+  tagContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '5px' },
+  likeTag: { backgroundColor: '#e6f7ff', color: '#1890ff', border: '1px solid #91d5ff', padding: '4px 10px', borderRadius: '20px', fontSize: '13px' },
+  dislikeTag: { backgroundColor: '#fff1f0', color: '#ff4d4f', border: '1px solid #ffa39e', padding: '4px 10px', borderRadius: '20px', fontSize: '13px' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '10px' },
+  partyItem: { border: '1px solid #e8e8e8', padding: '12px', borderRadius: '8px', position: 'relative', backgroundColor: '#fafafa' },
+  badgeOpen: { display: 'inline-block', marginTop: '8px', padding: '2px 8px', fontSize: '11px', backgroundColor: '#52c41a', color: '#fff', borderRadius: '4px' },
+  badgeClose: { display: 'inline-block', marginTop: '8px', padding: '2px 8px', fontSize: '11px', backgroundColor: '#bfbfbf', color: '#fff', borderRadius: '4px' }
+};
+
+export default MyPage;
