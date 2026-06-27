@@ -1,575 +1,252 @@
-// src/pages/MyPage.jsx
-import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-// 💡 withdrawUser (회원탈퇴 API) 함수를 임포트 목록에 추가했습니다.
-// withdrawUser를 지우고 원래대로 되돌립니다.
-import { getMyPage, toggleLike, saveFavoriteLocations, searchKakao } from '../api/services'
+import { useState, useEffect } from 'react'
+import { getMyPage, updateMe, toggleLike } from '../api/services'
 import { useAuth } from '../App'
-import { processTags } from '../utils'
+
+const PREFS    = ['한식','일식','중식','양식','분식','치킨','피자','카페','채식','해산물']
+const DISLIKES = ['오이','고수','파','마늘','쑥갓','가지','당근','콩']
 
 export default function MyPage() {
-  const navigate = useNavigate()
-  const { logout: ctxLogout } = useAuth()
-  const gauge2Ref = useRef(null)
-  const favoriteMenusRef = useRef(null)
+  const { user: authUser, login: ctxLogin } = useAuth()
+  const [data,    setData]    = useState(null)
+  const [tab,     setTab]     = useState('activity')  // activity | wishlist
+  const [editing, setEditing] = useState(false)
+  const [form,    setForm]    = useState({})
+  const [saving,  setSaving]  = useState(false)
 
-  const [data, setData] = useState(null)
-  const [activeTab, setActiveTab] = useState('liked')
-  const [showAllFavorites, setShowAllFavorites] = useState(false)
-  const [savedLocs, setSavedLocs] = useState([])
-  const [locSearch, setLocSearch] = useState('')
-  const [locResults, setLocResults] = useState([])
-  const [locLoading, setLocLoading] = useState(false)
-  const [locMsg, setLocMsg] = useState('')
-
-  // ── 데이터 로드 ───────────────────────────────────────────────────────────
   useEffect(() => {
-    getMyPage()
-      .then((d) => {
-        setData(d)
-        setSavedLocs(d.user.saved_locations ?? [])
+    getMyPage().then(d => {
+      setData(d)
+      setForm({
+        nickname:    d.user.nickname,
+        allergies:   d.user.allergies || '',
+        preferences: (d.user.preferences?.likes   || []),
+        dislikes:    (d.user.preferences?.dislikes || []),
       })
-      .catch((err) => console.error('마이페이지 로드 실패:', err))
+    }).catch(() => {})
   }, [])
 
-  // ── 매너 게이지 SVG 애니메이션 ───────────────────────────────────────────
-  useEffect(() => {
-    if (!data || !gauge2Ref.current) return
-    const score = data.user.manner_score
-    const r = 40
-    const circ = 2 * Math.PI * r
-    const offset = circ * (1 - Math.min(score / 50, 1))
-    const circle = gauge2Ref.current.querySelector('circle.progress')
-    if (circle) {
-      circle.style.strokeDasharray = circ
-      circle.style.strokeDashoffset = offset
-    }
-  }, [data])
+  const toggleChip = (val, key) =>
+    setForm(f => ({ ...f, [key]: f[key].includes(val) ? f[key].filter(v => v !== val) : [...f[key], val] }))
 
-  // ── 카카오 장소 검색 (searchKakao 서비스 함수 사용) ──────────────────────
-  const searchPlace = async () => {
-    if (!locSearch.trim()) return
-    setLocLoading(true)
-    setLocResults([])
-    setLocMsg('')
+  const handleSave = async () => {
+    setSaving(true)
     try {
-      const json = await searchKakao({ q: locSearch })
-      setLocResults(json.places ?? [])
-      if (!(json.places?.length)) setLocMsg('검색 결과가 없습니다.')
-    } catch {
-      setLocMsg('검색에 실패했습니다.')
+      const updated = await updateMe(form)
+      setData(d => ({ ...d, user: updated }))
+      ctxLogin(updated)
+      setEditing(false)
+    } catch (e) {
+      alert(e.response?.data?.message ?? '오류가 발생했습니다.')
     } finally {
-      setLocLoading(false)
+      setSaving(false)
     }
   }
 
-  const addLoc = async (place) => {
-    if (savedLocs.length >= 3) {
-      setLocMsg('장소는 최대 3개까지 저장 가능합니다.')
-      return
-    }
-    const newLocs = [
-      ...savedLocs,
-      { name: place.name, address: place.address, lat: place.lat, lng: place.lng },
-    ]
-    await saveFavoriteLocations(newLocs)
-    setSavedLocs(newLocs)
-    setLocResults([])
-    setLocSearch('')
-    setLocMsg(`✅ "${place.name}" 저장됨`)
-  }
-
-  const removeLoc = async (idx) => {
-    const newLocs = savedLocs.filter((_, i) => i !== idx)
-    await saveFavoriteLocations(newLocs)
-    setSavedLocs(newLocs)
-    setLocMsg('장소가 삭제됐습니다.')
-  }
-
-  // ── 찜 토글 ──────────────────────────────────────────────────────────────
   const handleLike = async (logId) => {
     const res = await toggleLike(logId)
-    setData((d) => ({
+    setData(d => ({
       ...d,
-      rec_logs: d.rec_logs.map((r) =>
-        r.log_id === logId ? { ...r, is_liked: res.liked } : r
-      ),
+      rec_logs: d.rec_logs.map(r => r.log_id === logId ? { ...r, is_liked: res.liked } : r),
     }))
   }
 
-  const handleFavoriteView = () => {
-    setActiveTab('liked')
-    setShowAllFavorites(true)
-    favoriteMenusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
- // ── 회원 탈퇴 ────────────────────────────────────────────────────────────
-  const handleWithdraw = async () => {
-    if (!window.confirm('정말로 회원 탈퇴를 하시겠습니까?')) return
-    try {
-      // 💡 존재하지 않는 외부 API 호출을 지우고, 기존 작성하셨던 인증 해제와 이동만 남깁니다.
-      ctxLogout()
-      alert('회원 탈퇴가 완료되었습니다.')
-      navigate('/')
-    } catch {
-      alert('탈퇴 처리 중 오류가 발생했습니다.')
-    }
-  }
-
-  // ── 로딩 ─────────────────────────────────────────────────────────────────
-  if (!data) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
-      로딩 중...
-    </div>
-  )
+  if (!data) return <div className="flex justify-center items-center h-64 text-gray-400">로딩 중...</div>
 
   const { user, my_parties, rec_logs } = data
-  const likes = processTags(user.preferences?.likes)
-  const dislikes = processTags(user.preferences?.dislikes)
-  const liked_logs = rec_logs.filter((r) => r.is_liked)
-  const mannerScore = user.manner_score
-
-  const R = 36
-  const circ = 2 * Math.PI * R
-  const heroOffset = circ * (1 - Math.min(mannerScore / 50, 1))
+  const mannerPct = Math.min((user.manner_score / 50) * 100, 100)
+  const circumference = 2 * Math.PI * 36
 
   return (
-    <>
-      <h1 style={{ fontSize: '2.4rem', fontWeight: 900, marginBottom: 24 }}>마이페이지</h1>
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <h1 className="text-3xl font-black">마이 메이지</h1>
 
-      {/* ── HERO BANNER ── */}
-      <div className="mypage-hero">
-        <div className="mypage-hero-inner">
-          <div className="profile-avatar">{user.nickname?.[0]}</div>
-          <div className="mypage-hero-text" style={{ flex: 1 }}>
-            <div style={{ fontSize: '.78rem', opacity: .55, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
-              MY PAGE
-            </div>
-            <h2>나의 메뉴 취향과 활동을 한눈에 확인하세요.</h2>
-            <p>찜한 메뉴, 프로필, 추천 기록, 매칭 내역을 관리하는 마이페이지입니다.</p>
-            <Link
-              to="/mypage/edit"
-              className="btn btn-sm"
-              style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' }}
-            >
-              프로필 수정 →
-            </Link>
-          </div>
-          <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <div style={{ position: 'relative', width: 90, height: 90 }}>
-              <svg width="90" height="90" viewBox="0 0 90 90">
-                <circle cx="45" cy="45" r={R} fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="7" />
-                <circle cx="45" cy="45" r={R} fill="none" stroke="#F6AD55" strokeWidth="7"
-                  strokeLinecap="round"
-                  strokeDasharray={circ}
-                  strokeDashoffset={heroOffset}
-                  transform="rotate(-90 45 45)"
-                  style={{ transition: 'stroke-dashoffset 1s' }}
-                />
-              </svg>
-              <div className="manner-num" style={{ color: '#fff' }}>
-                <span className="manner-val">{mannerScore}</span>
-                <small>°C</small>
-              </div>
-            </div>
-            <div style={{ color: 'rgba(255,255,255,.65)', fontSize: '.75rem', marginTop: 4 }}>매너온도</div>
-          </div>
+      {/* 히어로 배너 */}
+      <div className="bg-gray-900 text-white rounded-2xl p-6 flex items-start gap-5 flex-wrap">
+        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-3xl font-black flex-shrink-0">
+          {user.nickname?.[0]}
         </div>
-      </div>
-
-      {/* ── STAT ROW ── */}
-      <div className="stat-row">
-        <div className="stat-card">
-          <div className="stat-num">{likes.length}</div>
-          <div className="stat-label">찜한 메뉴</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            좋아요 {likes.length}개 · 싫어요 {dislikes.length}개
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-num">{rec_logs.length}</div>
-          <div className="stat-label">추천 활동</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            최근 추천 {rec_logs.length}회
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-num">{my_parties.length}</div>
-          <div className="stat-label">매칭 기록</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            완료된 파티 {my_parties.length}건
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-num" style={{ color: 'var(--color-accent)' }}>{mannerScore}</div>
-          <div className="stat-label">매너점수</div>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            당근처럼 {mannerScore}점
-          </div>
-        </div>
-      </div>
-
-      {/* ── 프로필 + 매너점수 ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 16 }}>
-        <div className="profile-section">
-          <div className="flex-between mb-16">
-            <h3>프로필</h3>
-            <Link to="/mypage/edit" className="btn btn-sm btn-secondary">수정</Link>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 16, alignItems: 'start' }}>
-            <div className="profile-avatar">{user.nickname?.[0]}</div>
-            <div>
-              {[
-                ['닉네임', user.nickname ?? ''],
-                ['이메일', user.email],
-                ['성별', user.gender ?? '미설정'],
-                ['주소지', user.address ?? '없음'],
-                ['선호메뉴', likes.slice(0, 3).join(', ') || '없음'],
-                ['알러지', (user.allergies ?? '').split(',').filter(Boolean).slice(0, 2).join(', ') || '없음'],
-              ].map(([label, val]) => (
-                <div
-                  key={label}
-                  style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--bg-surface)', fontSize: '.88rem' }}
-                >
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
-                  <span style={{ fontWeight: 700 }}>{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="profile-section">
-          <div className="flex-between mb-16">
-            <h3>매너점수</h3>
-          </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div ref={gauge2Ref} style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
-              <svg width="100" height="100" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="var(--bg-surface)" strokeWidth="8" />
-                <circle
-                  className="progress"
-                  cx="50" cy="50" r="40"
-                  fill="none"
-                  stroke="var(--color-accent)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  transform="rotate(-90 50 50)"
-                />
-              </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '1.5rem', fontWeight: 800, lineHeight: 1 }}>{mannerScore}</span>
-                <small style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>점</small>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>따뜻한 식사 메이트</div>
-              <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                약속, 공감, 후기 기반으로 쌓아두는 점수
-              </p>
-            </div>
-          </div>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
-          {[
-            ['파티 참여', (my_parties.length * 0.5).toFixed(1)],
-            ['후기 작성', (liked_logs.length * 0.3).toFixed(1)],
-            ['약속 이행', '1.0'],
-          ].map(([label, val]) => (
-            <div
-              key={label}
-              style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '.82rem', color: 'var(--text-muted)' }}
-            >
-              <span>{label}</span>
-              <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>+{val}°</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 음식 취향 ── */}
-      <div className="profile-section">
-        <div className="flex-between mb-16">
-          <h3>🍽️ 나의 음식 취향</h3>
-            <Link to="/mypage/edit#food-preferences" className="btn btn-sm btn-secondary">수정 →</Link>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#1890ff', marginBottom: 8 }}>👍 좋아하는 음식</div>
-          {likes.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {likes.map((item, idx) => (
-                <span key={idx} style={{ background: '#e6f7ff', color: '#1890ff', border: '1px solid #91d5ff', padding: '4px 12px', borderRadius: 20, fontSize: '.82rem' }}>
-                  {item}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>등록된 선호 음식이 없습니다.</p>
-          )}
-        </div>
-        <div>
-          <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#ff4d4f', marginBottom: 8 }}>👎 기피하는 음식</div>
-          {dislikes.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {dislikes.map((item, idx) => (
-                <span key={idx} style={{ background: '#fff1f0', color: '#ff4d4f', border: '1px solid #ffa39e', padding: '4px 12px', borderRadius: 20, fontSize: '.82rem' }}>
-                  {item}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>등록된 기피 음식이 없습니다.</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── 메뉴 찜목록 ── */}
-      <div className="profile-section" ref={favoriteMenusRef} id="favorite-menus">
-        <div className="flex-between mb-16">
-          <h3>메뉴 찜목록</h3>
-          <button type="button" onClick={handleFavoriteView} className="btn btn-sm btn-secondary">
-            선택보기 →
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-white/50 uppercase tracking-widest mb-1">MY PAGE</p>
+          <h2 className="text-xl font-black mb-1">나의 메뉴 취향과 활동을 한눈에 확인하세요.</h2>
+          <p className="text-sm text-white/60 mb-3">찜한 메뉴, 프로필, 추천 기록, 매칭 내역을 관리하는 마이페이지입니다.</p>
+          <button onClick={() => setEditing(e => !e)} className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg">
+            {editing ? '취소' : '프로필 수정 →'}
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {[['liked', '좋아요'], ['disliked', '싫어요']].map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              style={{
-                padding: '7px 20px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontWeight: 700, fontSize: '.88rem',
-                background: activeTab === key ? 'var(--color-secondary)' : 'var(--bg-surface)',
-                color: activeTab === key ? '#fff' : 'var(--text-muted)',
-              }}
-            >
+        {/* 매너 온도 게이지 */}
+        <div className="flex flex-col items-center flex-shrink-0">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle cx="45" cy="45" r="36" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="7"/>
+            <circle cx="45" cy="45" r="36" fill="none" stroke="#F6AD55" strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - mannerPct / 100)}
+              transform="rotate(-90 45 45)"
+              style={{ transition: 'stroke-dashoffset 1s' }}/>
+            <text x="45" y="45" textAnchor="middle" dominantBaseline="central" fill="white" fontSize="16" fontWeight="800">
+              {user.manner_score}
+            </text>
+            <text x="45" y="62" textAnchor="middle" fill="rgba(255,255,255,.5)" fontSize="10">°C</text>
+          </svg>
+          <p className="text-xs text-white/50 mt-1">매너온도</p>
+        </div>
+      </div>
+
+      {/* 통계 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          ['찜한 메뉴',   rec_logs.filter(r => r.is_liked).length + '개'],
+          ['추천 활동',   rec_logs.length + '회'],
+          ['매칭 기록',   my_parties.length + '건'],
+          ['매너점수',    user.manner_score + '°'],
+        ].map(([label, val]) => (
+          <div key={label} className="card p-4 text-center">
+            <p className="text-2xl font-black">{val}</p>
+            <p className="text-xs text-gray-400 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 프로필 편집 */}
+      {editing && (
+        <div className="card p-6 space-y-4">
+          <h3 className="font-bold">✏️ 프로필 수정</h3>
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-1">닉네임</label>
+            <input className="input" value={form.nickname} onChange={e => setForm({...form, nickname: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-1">알러지/제외 재료</label>
+            <input className="input" placeholder="오이, 갑각류..." value={form.allergies} onChange={e => setForm({...form, allergies: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-2">좋아하는 음식</label>
+            <div className="flex flex-wrap gap-2">
+              {PREFS.map(p => (
+                <button type="button" key={p} onClick={() => toggleChip(p, 'preferences')}
+                  className={`px-3 py-1 rounded-full border text-sm font-semibold transition-colors
+                    ${form.preferences.includes(p) ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'}`}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-600 mb-2">싫어하는 음식</label>
+            <div className="flex flex-wrap gap-2">
+              {DISLIKES.map(d => (
+                <button type="button" key={d} onClick={() => toggleChip(d, 'dislikes')}
+                  className={`px-3 py-1 rounded-full border text-sm font-semibold transition-colors
+                    ${form.dislikes.includes(d) ? 'bg-red-500 text-white border-red-500' : 'bg-white text-gray-600 border-gray-200'}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? '저장 중...' : '저장'}</button>
+            <button onClick={() => setEditing(false)} className="btn-secondary">취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* 프로필 정보 */}
+      {!editing && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="card p-5">
+            <h3 className="font-bold mb-3">프로필</h3>
+            <div className="space-y-3 text-sm">
+              <div><span className="text-gray-400">닉네임</span><span className="ml-3 font-semibold">{user.nickname}</span></div>
+              <div><span className="text-gray-400">이메일</span><span className="ml-3">{user.email}</span></div>
+              <div>
+                <span className="text-gray-400">선호 메뉴</span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(user.preferences?.likes || []).map(p => <span key={p} className="badge badge-info">{p}</span>)}
+                  {!(user.preferences?.likes?.length) && <span className="text-gray-300 text-xs">없음</span>}
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-400">알러지</span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(user.allergies || '').split(',').filter(Boolean).map(a => <span key={a} className="badge badge-warning">{a.trim()}</span>)}
+                  {!user.allergies && <span className="text-gray-300 text-xs">없음</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="card p-5">
+            <h3 className="font-bold mb-3">내 파티</h3>
+            {my_parties.length === 0
+              ? <p className="text-gray-400 text-sm">참여한 파티가 없습니다</p>
+              : <div className="space-y-2">
+                  {my_parties.map(p => (
+                    <div key={p.party_id} className="flex items-center gap-2 text-sm border-b border-gray-50 pb-2">
+                      <span className={`badge ${p.status === 'RECRUITING' ? 'badge-success' : 'badge-info'}`}>
+                        {p.status === 'RECRUITING' ? '모집중' : p.status}
+                      </span>
+                      <span className="font-semibold truncate">{p.title}</span>
+                      <span className="text-gray-400 text-xs ml-auto flex-shrink-0">{p.member_count}/{p.max_people}</span>
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* 탭 — 활동내역 / 찜목록 */}
+      <div>
+        <div className="flex gap-1 border-b border-gray-200 mb-4">
+          {[['activity','활동 내역'],['wishlist','찜 목록']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors
+                ${tab === key ? 'border-red-500 text-gray-900' : 'border-transparent text-gray-400'}`}>
               {label}
             </button>
           ))}
         </div>
 
-        {activeTab === 'liked' && (
-          liked_logs.length > 0 ? (
-            <div className="grid-4">
-              {(showAllFavorites ? liked_logs : liked_logs.slice(0, 4)).map((log) => (
-                <Link
-                  to={`/menu/${log.restaurant?.id ?? log.recommended_restaurant_id}`}
-                  className="card rest-card"
-                  key={log.log_id}
-                >
-                  <div className="card-img" style={{ fontSize: '2rem' }}>🍴</div>
-                  <div className="card-body">
-                    <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
-                    <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>
-                    <div className="rest-addr" style={{ marginTop: 4 }}>
-                      {(log.restaurant?.address ?? '').slice(0, 20)}
-                      {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
+        {tab === 'activity' && (
+          <div className="grid md:grid-cols-3 gap-3">
+            {rec_logs.length === 0
+              ? <p className="text-gray-400 text-sm col-span-full">활동 내역이 없습니다</p>
+              : rec_logs.map(log => (
+                  <div key={log.log_id} className="card p-4 flex gap-3 items-start">
+                    <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center text-lg flex-shrink-0">🤖</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-400 mb-0.5">추천</p>
+                      <p className="font-semibold text-sm truncate">{log.restaurant?.name || '식당'}</p>
+                      <p className="text-xs text-gray-400">{log.restaurant?.category}</p>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon">❤️</div>
-              <p>아직 찜한 메뉴가 없습니다</p>
-              <Link to="/menu" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>
-                メニュー 둘러보기
-              </Link>
-            </div>
-          )
-        )}
-
-        {activeTab === 'disliked' && (
-          dislikes.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '16px 0' }}>
-              {dislikes.map((d) => (
-                <span key={d} style={{ padding: '4px 12px', borderRadius: 16, background: '#FFF5F5', color: 'var(--color-danger)', fontSize: '.78rem', fontWeight: 600 }}>
-                  {d}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon">👎</div>
-              <p>싫어하는 음식이 없습니다</p>
-            </div>
-          )
-        )}
-      </div>
-
-      {/* ── 활동내역 ── */}
-      <div className="profile-section">
-        <div className="flex-between mb-16">
-          <h3>활동내역</h3>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          {rec_logs.slice(0, 3).map((log) => (
-            <div
-              key={log.log_id}
-              style={{ display: 'flex', gap: 14, padding: 14, background: 'var(--bg-white)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)' }}
-            >
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFF5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
-                🤖
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 2 }}>추천</div>
-                <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{log.restaurant?.name ?? '식당 추천'}</div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  {log.restaurant?.category ?? ''} · {log.is_liked ? '찜함' : '추천만'}
-                </div>
-              </div>
-              <button
-                onClick={() => handleLike(log.log_id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
-              >
-                {log.is_liked ? '❤️' : '🤍'}
-              </button>
-            </div>
-          ))}
-          {my_parties.slice(0, 2).map((p) => (
-            <Link
-              to={`/party/${p.party_id}?tab=chat`}
-              key={p.party_id}
-              style={{ display: 'flex', gap: 14, padding: 14, background: 'var(--bg-white)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', color: 'inherit', textDecoration: 'none' }}
-            >
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F0FFF4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
-                👥
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 2 }}>매칭/파티</div>
-                <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{p.title}</div>
-                <div style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  {p.restaurant?.name ?? ''} · {p.meeting_time
-                    ? new Date(p.meeting_time).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-                    : ''}
-                </div>
-              </div>
-            </Link>
-          ))}
-          {rec_logs.length === 0 && my_parties.length === 0 && (
-            <div className="empty-state" style={{ gridColumn: '1/-1' }}>
-              <div className="empty-icon">📋</div>
-              <p>아직 활동 내역이 없습니다</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── 저장 장소 ── */}
-      <div className="profile-section">
-        <div className="flex-between mb-16">
-          <h3>
-            📍 저장 장소{' '}
-            <span style={{ fontSize: '.8rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-              ({savedLocs.length}/3)
-            </span>
-          </h3>
-        </div>
-        <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginBottom: 14 }}>
-          자주 가는 장소를 최대 3개 저장하면 챗봇에서 선택해 근처 맛집을 추천받을 수 있어요.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {savedLocs.map((loc, idx) => (
-            <div
-              key={idx}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-color)' }}
-            >
-              <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: ['#E53E3E', '#3182CE', '#38A169'][idx], color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.75rem', fontWeight: 800 }}>
-                {idx + 1}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{loc.name}</div>
-                <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {loc.address}
-                </div>
-              </div>
-              <button
-                onClick={() => removeLoc(idx)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', padding: 4, flexShrink: 0 }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          {savedLocs.length < 3 && Array.from({ length: 3 - savedLocs.length }).map((_, i) => (
-            <div
-              key={`empty-${i}`}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'transparent', borderRadius: 8, padding: '10px 14px', border: '1.5px dashed var(--border-color)' }}
-            >
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.75rem', color: 'var(--text-light)', flexShrink: 0 }}>
-                {savedLocs.length + i + 1}
-              </div>
-              <div style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>장소를 추가하세요</div>
-            </div>
-          ))}
-        </div>
-
-        {savedLocs.length < 3 && (
-          <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <input
-                className="form-control"
-                style={{ flex: 1 }}
-                placeholder="장소명 검색 (예: 우리집, 회사, 학교...)"
-                value={locSearch}
-                onChange={(e) => setLocSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && searchPlace()}
-              />
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={searchPlace}
-                disabled={locLoading}
-                style={{ flexShrink: 0 }}
-              >
-                {locLoading ? '...' : '🔍 검색'}
-              </button>
-            </div>
-            {locMsg && (
-              <div style={{ fontSize: '.8rem', padding: '6px 10px', borderRadius: 6, marginBottom: 8, background: locMsg.startsWith('✅') ? '#F0FFF4' : '#FFF5F5', color: locMsg.startsWith('✅') ? '#276749' : '#C53030' }}>
-                {locMsg}
-              </div>
-            )}
-            {locResults.length > 0 && (
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
-                {locResults.slice(0, 6).map((p) => (
-                  <div
-                    key={p.id}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--bg-surface)', background: 'var(--bg-white)' }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '.88rem' }}>{p.name}</div>
-                      <div style={{ fontSize: '.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.address}
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      style={{ fontSize: '.75rem', flexShrink: 0 }}
-                      onClick={() => addLoc(p)}
-                    >
-                      + 저장
+                    <button onClick={() => handleLike(log.log_id)}
+                      className={`text-xl flex-shrink-0 ${log.is_liked ? 'text-red-500' : 'text-gray-200'}`}>
+                      ❤️
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+            }
+          </div>
+        )}
+
+        {tab === 'wishlist' && (
+          <div>
+            {rec_logs.filter(r => r.is_liked).length === 0
+              ? <p className="text-gray-400 text-sm">찜한 항목이 없습니다</p>
+              : <div className="grid md:grid-cols-3 gap-3">
+                  {rec_logs.filter(r => r.is_liked).map(log => (
+                    <div key={log.log_id} className="card p-4 flex gap-3 items-center">
+                      <span className="text-2xl">🍴</span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{log.restaurant?.name}</p>
+                        <p className="text-xs text-gray-400">{log.restaurant?.category}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
           </div>
         )}
       </div>
-
-      {/* ── 회원 탈퇴 ── */}
-      <div style={{ marginTop: 56, borderTop: '1px solid var(--border-color)', paddingTop: 24, textAlign: 'right' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '.85rem', marginBottom: 8 }}>
-          더 이상 서비스를 이용하고 싶지 않으신가요?
-        </p>
-        <button
-          onClick={handleWithdraw}
-          style={{ background: '#E53E3E', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 12px', fontSize: '.85rem', fontWeight: 700, cursor: 'pointer' }}
-        >
-          🚨 회원 탈퇴하기
-        </button>
-      </div>
-    </>
+    </div>
   )
 }
