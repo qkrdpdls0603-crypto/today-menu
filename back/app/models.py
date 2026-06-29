@@ -81,6 +81,20 @@ class ChatMessage(db.Model):
 
     sender = db.relationship('User', foreign_keys=[sender_id])
 
+class MannerVote(db.Model):
+    """매너온도 투표 — 하루 2회 제한"""
+    __tablename__ = 'manner_votes'
+
+    vote_id     = db.Column(db.Integer, primary_key=True)
+    voter_id    = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    target_id   = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    is_positive = db.Column(db.Boolean, nullable=False)
+    voted_at    = db.Column(db.DateTime, default=datetime.utcnow)
+
+    voter  = db.relationship('User', foreign_keys=[voter_id])
+    target = db.relationship('User', foreign_keys=[target_id])
+
+
 class RecommendationLog(db.Model):
     __tablename__ = 'recommendation_logs'
 

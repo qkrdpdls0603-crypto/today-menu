@@ -5,6 +5,8 @@ import { getRestaurants, getNearby } from '../api/services'
 import { useAuth } from '../App'
 import KakaoMap from '../components/KakaoMap'
 import RestaurantSearch from '../components/RestaurantSearch'
+import RestaurantImage from "../components/RestaurantImage";
+
 
 const CAT_ICON = { 한식: '🍚', 일식: '🍣', 중식: '🥡', 양식: '🥩', 분식: '🍜', 치킨: '🍗', 피자: '🍕', 카페: '☕' }
 const TREND_FOODS = ['삼겹살', '치킨', '짜장면', '순대국', '초밥', '파스타', '비빔밥', '떡볶이']
@@ -129,6 +131,7 @@ export default function Home() {
                   <Link to="/party" className="btn btn-light">밥친구 찾기 →</Link>
                   <button type="button" className="btn btn-yellow" onClick={findNearby}>내 주변 찾기 📍</button>
                 </div>
+
               </div>
               <img
                 className="banner-food"
@@ -164,6 +167,7 @@ export default function Home() {
                 </Link>
               ))}
             </div>
+
           </aside>
         </section>
 
@@ -189,6 +193,7 @@ export default function Home() {
                   <span className={`rank-badge rank-${index + 1}`}>{index + 1}</span>
                   <span className="heart-btn">♡</span>
                 </div>
+
                 <div className="card-body">
                   <div className="card-title">{r.name}</div>
                   <div className="rest-meta">

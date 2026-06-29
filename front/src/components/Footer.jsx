@@ -116,7 +116,6 @@ export default function Footer() {
     //           </div>
     //         </div>
     //       </div>
-
     //     </div>
 
     //     {/* ── [2구역] 오른쪽 끝 영역: 패밀리 사이트 아코디언 (아래로 열림) ── */}
@@ -132,7 +131,6 @@ export default function Footer() {
     //             {isFamilyOpen ? '∨' : '∧'}
     //           </span>
     //         </button>
-
     //         {/* 아래를 향해 열리는 드롭다운 박스 */}
     //         {isFamilyOpen && (
     //           <div className="footer-accordion-dropdown">
@@ -150,7 +148,6 @@ export default function Footer() {
     //         )}
     //       </div>
     //     </div>
-
     //   </div>
     // </footer>
 //   )

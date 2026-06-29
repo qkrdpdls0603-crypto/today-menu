@@ -4,25 +4,26 @@ import requests as req_lib
 from datetime import datetime
 from functools import wraps
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory
 from flask_jwt_extended import (
     create_access_token, create_refresh_token,
     jwt_required, get_jwt_identity
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 from app import db
 from app.models import (
     User, Restaurant, Party, PartyMember,
-    ChatMessage, RecommendationLog, StatusEnum, RoleEnum
+    ChatMessage, RecommendationLog, MannerVote, StatusEnum, RoleEnum
 )
 
 # ── 블루프린트 ────────────────────────────────────────────────────────────────
 main_bp   = Blueprint('main',   __name__)
-auth_bp   = Blueprint('auth',   __name__, url_prefix='/auth')
-menu_bp   = Blueprint('menu',   __name__, url_prefix='/menu')
-party_bp  = Blueprint('party',  __name__, url_prefix='/party')
-mypage_bp = Blueprint('mypage', __name__, url_prefix='/mypage')
+auth_bp   = Blueprint('auth',   __name__, url_prefix='/api/auth')
+menu_bp   = Blueprint('menu',   __name__, url_prefix='/api/menu')
+party_bp  = Blueprint('party',  __name__, url_prefix='/api/party')
+mypage_bp = Blueprint('mypage', __name__, url_prefix='/api/mypage')
 api_bp    = Blueprint('api',    __name__, url_prefix='/api')
 
 CATEGORIES = ['전체', '한식', '일식', '중식', '양식', '분식', '치킨', '피자', '카페', '술집']
@@ -70,7 +71,7 @@ def serialize_user(u):
         'saved_locations': prefs.get('saved_locations', []),
     }
 
-def serialize_restaurant(r):
+def serialize_restaurant(r, like_count=None):
     phone = getattr(r, 'phone', None) or r.description or ''
     return {
         'id':          r.restaurant_id,
@@ -82,6 +83,7 @@ def serialize_restaurant(r):
         'description': r.description,
         'phone':       phone,
         'avg_rating':  r.avg_rating,
+        'like_count':  like_count if like_count is not None else 0,
     }
 
 def serialize_party(p, viewer_id=None):
@@ -125,7 +127,22 @@ def serialize_message(m):
 # ══════════════════════════════════════════════════════════════════════════════
 @main_bp.route('/')
 def index():
-    trending     = Restaurant.query.order_by(Restaurant.avg_rating.desc()).limit(8).all()
+    from sqlalchemy import func as sa_func
+    liked_sub = (
+        db.session.query(
+            RecommendationLog.recommended_restaurant_id,
+            sa_func.count(RecommendationLog.log_id).label('like_count')
+        )
+        .filter(RecommendationLog.is_liked == True)
+        .group_by(RecommendationLog.recommended_restaurant_id)
+        .subquery()
+    )
+    trending = (
+        Restaurant.query
+        .outerjoin(liked_sub, Restaurant.restaurant_id == liked_sub.c.recommended_restaurant_id)
+        .order_by(sa_func.coalesce(liked_sub.c.like_count, 0).desc())
+        .limit(8).all()
+    )
     open_parties = Party.query.filter_by(status=StatusEnum.RECRUITING)\
                              .order_by(Party.created_at.desc()).limit(4).all()
     return jsonify({
@@ -328,11 +345,24 @@ def list_restaurants():
     cat        = request.args.get('cat', '전체')
     page       = request.args.get('page', 1, type=int)
     q          = request.args.get('q', '')
-    query      = Restaurant.query
+    sort  = request.args.get('sort', 'rating')
+    query = Restaurant.query
     if cat != '전체':
         query = query.filter_by(category=cat)
     if q:
         query = query.filter(Restaurant.name.ilike(f'%{q}%'))
+    if sort == 'likes':
+        from sqlalchemy import func as _sf
+        _ls = (db.session.query(
+            RecommendationLog.recommended_restaurant_id,
+            _sf.count(RecommendationLog.log_id).label('lc'))
+            .filter(RecommendationLog.is_liked == True)
+            .group_by(RecommendationLog.recommended_restaurant_id).subquery())
+        query = query.outerjoin(
+            _ls, Restaurant.restaurant_id == _ls.c.recommended_restaurant_id
+        ).order_by(_sf.coalesce(_ls.c.lc, 0).desc())
+    else:
+        query = query.order_by(Restaurant.avg_rating.desc())
     pagination = query.paginate(page=page, per_page=12, error_out=False)
     return jsonify({
         'items':    [serialize_restaurant(r) for r in pagination.items],
@@ -709,22 +739,87 @@ def chatbot():
 8. 여러 선택지를 줄 때는 번호 목록으로 제시하세요."""
 
     else:
-        system_prompt = f"""당신은 '오늘의 메뉴' 앱의 고객지원 Q&A 챗봇입니다.
-앱 사용법, 기능, 회원 정보 관련 질문에 친절하게 답변해주세요.
+        # ── Q&A용 DB 데이터 조회 ──────────────────────────────────────────────
+        # 찜 목록 (최대 5개)
+        liked_names = ', '.join([
+            Restaurant.query.get(l.recommended_restaurant_id).name
+            for l in RecommendationLog.query.filter_by(user_id=user_id, is_liked=True).limit(5).all()
+            if Restaurant.query.get(l.recommended_restaurant_id)
+        ]) or '없음'
 
-[현재 사용자]
+        # 참여 중인 파티 (최대 3개)
+        from app.models import PartyMember, Party
+        my_parties = db.session.query(Party).join(
+            PartyMember, Party.party_id == PartyMember.party_id
+        ).filter(PartyMember.user_id == user_id).order_by(
+            Party.created_at.desc()
+        ).limit(3).all()
+        party_info = ', '.join([
+            f"{p.title}({p.status.value})"
+            for p in my_parties
+        ]) or '없음'
+
+        # 매너온도
+        manner = user.manner_score
+
+        system_prompt = f"""당신은 '오늘의 메뉴' 앱의 Q&A 안내 챗봇입니다.
+아래 사용자 정보와 앱 가이드를 바탕으로 친절하고 구체적으로 안내해주세요.
+
+[현재 사용자 DB 정보]
 - 닉네임: {user.nickname}
+- 매너온도: {manner}°C
+- 알러지/기피 재료: {ctx['allergies']}
+- 좋아하는 음식: {ctx['likes']}
+- 찜한 식당 목록: {liked_names}
 - 등록된 장소: {ctx['saved_locs']}
-- 알러지 설정: {ctx['allergies']}
+- 참여 중인 파티: {party_info}
 
-[앱 주요 기능]
-- 메뉴 추천: AI가 취향 기반으로 추천
-- 밥친구 매칭: 파티 생성 & 참여
-- 게임창: 질문을 통한 메뉴 추천
-- 마이페이지: 취향/찜목록/활동내역 관리
-- 내 위치 기반 반경 내 식당 검색
+[앱 기능 상세 가이드]
 
-짧고 친절한 한국어로 답변하세요."""
+■ 메뉴 추천 (AI 챗봇 추천 탭)
+- 챗봇 왼쪽 하단 💬 버튼 → '🍽️ 메뉴 추천' 탭 선택
+- 위치 버튼(📍)으로 현재 GPS 위치 또는 저장 장소 중 선택 가능
+- AI가 취향·알러지·찜목록 기반으로 주변 식당 추천
+- + 버튼으로 빠른 질문 선택 가능 (점심 추천, 매운 것, 혼밥 등)
+
+■ 찜 목록 사용법
+- 메뉴 찾기 페이지에서 식당 카드의 ❤️ 버튼 클릭 → 찜 등록
+- 마이페이지 → '메뉴 찜목록' 탭에서 확인
+- 챗봇 + 버튼에 찜한 식당이 표시되어 "근처 비슷한 메뉴 추천" 가능
+
+■ 밥친구 파티 기능
+- 파티 만들기: 상단 메뉴 '밥친구' → 우측 상단 '파티 만들기' 버튼
+  → 식당 선택, 모집 인원, 날짜·시간 입력 후 생성
+- 파티 참여: 밥친구 목록에서 '모집 중' 파티 클릭 → '파티 참여하기' 버튼
+- 참여 후 파티 채팅방에서 실시간 대화 가능
+- 파티 참여 시 매너온도 +0.5° 상승
+
+■ 매너온도 시스템
+- 현재 {user.nickname}님의 매너온도: {manner}°C
+- 파티 참여, 후기 작성 등으로 온도 상승
+- 파티 상세 페이지 참여자 목록에서 👍/👎 클릭으로 다른 회원 투표 (하루 2회)
+- 온도 범위: 20°C ~ 50°C
+
+■ 게임창 사용법
+- 상단 메뉴 '🎲 게임창' 클릭
+- 4가지 게임 모드:
+  1) 룰렛: 랜덤으로 메뉴 뽑기
+  2) 스무고개: AI와 스무고개로 메뉴 결정
+  3) 월드컵(32강): 메뉴 대결로 최애 메뉴 선택
+  4) 뽑기: 운에 맡겨 메뉴 결정
+
+■ 마이페이지
+- 프로필 수정: 닉네임, 알러지, 좋아하는/기피 음식 태그 설정
+- 저장 장소: 집/회사/학교 등 최대 3개 저장 → 챗봇 위치 추천에 활용
+- 활동내역: 추천 받은 식당, 참여한 파티 이력 확인
+
+■ 위치 기반 식당 검색
+- 홈 화면 → '내 주변 추천' 섹션에서 자동 표시
+- 챗봇 추천 탭 → 📍 버튼으로 위치 선택 후 질문
+
+친절하고 명확한 한국어로 답변하세요.
+사용자 DB 정보를 활용해 개인화된 안내를 제공하세요.
+예: 찜한 식당이 있으면 "회원님이 찜하신 {liked_names} 관련 기능은..." 처럼 안내."""
 
     messages_to_send = [{'role': 'system', 'content': system_prompt}]
     messages_to_send += history[-20:]
@@ -949,4 +1044,65 @@ def handle_send_message(data):
 @socketio.on('disconnect')
 def handle_disconnect():
     pass
+
+
+
+# ── 매너온도 투표 API ────────────────────────────────────────────────────────
+@api_bp.route('/manner/vote/<int:target_id>', methods=['POST'])
+@jwt_login_required
+def vote_manner(target_id):
+    from datetime import date
+    voter_id = int(get_jwt_identity())
+    if voter_id == target_id:
+        return jsonify({'message': '자신에게 투표할 수 없습니다.'}), 400
+    target = User.query.get_or_404(target_id)
+    body   = request.get_json(force=True)
+    is_pos = bool(body.get('is_positive', True))
+    today  = date.today()
+    today_count = MannerVote.query.filter(
+        MannerVote.voter_id == voter_id,
+        db.func.date(MannerVote.voted_at) == today,
+    ).count()
+    if today_count >= 2:
+        return jsonify({'message': '오늘 투표 횟수(2회)를 모두 사용했습니다.'}), 429
+    already = MannerVote.query.filter(
+        MannerVote.voter_id  == voter_id,
+        MannerVote.target_id == target_id,
+        db.func.date(MannerVote.voted_at) == today,
+    ).first()
+    if already:
+        return jsonify({'message': '오늘 이미 이 회원에게 투표했습니다.'}), 409
+    vote = MannerVote(voter_id=voter_id, target_id=target_id, is_positive=is_pos)
+    db.session.add(vote)
+    delta = 1.0 if is_pos else -1.0
+    target.manner_score = round(max(20.0, min(50.0, target.manner_score + delta)), 1)
+    db.session.commit()
+    remaining = 2 - (today_count + 1)
+    return jsonify({
+        'message':     f"{'따뜻한' if is_pos else '차가운'} 한 표! {target.nickname}님 온도 {'+' if is_pos else ''}{delta}°",
+        'new_score':   target.manner_score,
+        'remaining':   remaining,
+        'is_positive': is_pos,
+    }), 200
+
+
+@api_bp.route('/manner/status', methods=['GET'])
+@jwt_login_required
+def manner_vote_status():
+    from datetime import date
+    voter_id = int(get_jwt_identity())
+    today    = date.today()
+    used  = MannerVote.query.filter(
+        MannerVote.voter_id == voter_id,
+        db.func.date(MannerVote.voted_at) == today,
+    ).count()
+    votes = MannerVote.query.filter(
+        MannerVote.voter_id == voter_id,
+        db.func.date(MannerVote.voted_at) == today,
+    ).all()
+    return jsonify({
+        'used':      used,
+        'remaining': max(0, 2 - used),
+        'votes':     [{'target_id': v.target_id, 'is_positive': v.is_positive} for v in votes],
+    }), 200
 

@@ -204,7 +204,7 @@ export default function MyPage() {
           <div className="stat-num" style={{ color: 'var(--color-accent)' }}>{mannerScore}</div>
           <div className="stat-label">매너점수</div>
           <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            당근처럼 {mannerScore}점
+            {mannerScore}°C
           </div>
         </div>
       </div>
@@ -293,11 +293,11 @@ export default function MyPage() {
             <Link to="/mypage/edit#food-preferences" className="btn btn-sm btn-secondary">수정 →</Link>
         </div>
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#1890ff', marginBottom: 8 }}>👍 좋아하는 음식</div>
+          <div style={{ fontSize: '.82rem', fontWeight: 700, color: 'var(--color-info)', marginBottom: 8 }}>👍 좋아하는 음식</div>
           {likes.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {likes.map((item, idx) => (
-                <span key={idx} style={{ background: '#e6f7ff', color: '#1890ff', border: '1px solid #91d5ff', padding: '4px 12px', borderRadius: 20, fontSize: '.82rem' }}>
+                <span key={idx} style={{ background: 'var(--bg-surface)', color: 'var(--color-info)', border: '1px solid var(--border-color)', padding: '4px 12px', borderRadius: 20, fontSize: '.82rem' }}>
                   {item}
                 </span>
               ))}
@@ -307,11 +307,11 @@ export default function MyPage() {
           )}
         </div>
         <div>
-          <div style={{ fontSize: '.82rem', fontWeight: 700, color: '#ff4d4f', marginBottom: 8 }}>👎 기피하는 음식</div>
+          <div style={{ fontSize: '.82rem', fontWeight: 700, color: 'var(--color-danger)', marginBottom: 8 }}>👎 기피하는 음식</div>
           {dislikes.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {dislikes.map((item, idx) => (
-                <span key={idx} style={{ background: '#fff1f0', color: '#ff4d4f', border: '1px solid #ffa39e', padding: '4px 12px', borderRadius: 20, fontSize: '.82rem' }}>
+                <span key={idx} style={{ background: '#FFF5F5', color: 'var(--color-danger)', border: '1px solid var(--border-color)', padding: '4px 12px', borderRadius: 20, fontSize: '.82rem' }}>
                   {item}
                 </span>
               ))}
