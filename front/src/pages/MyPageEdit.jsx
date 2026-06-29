@@ -212,9 +212,9 @@ export default function MyPageEdit() {
                   style={{
                     padding: '5px 14px', borderRadius: 20, border: '1.5px solid',
                     cursor: 'pointer', fontSize: '.82rem', fontWeight: 600,
-                    borderColor: form.preferences.includes(food) ? 'var(--color-info)' : 'var(--border-color)',
-                    background: form.preferences.includes(food) ? 'var(--bg-surface)' : 'var(--bg-white)',
-                    color: form.preferences.includes(food) ? 'var(--color-info)' : 'var(--text-secondary)',
+                    borderColor: form.preferences.includes(food) ? '#1890ff' : 'var(--border-color)',
+                    background: form.preferences.includes(food) ? '#e6f7ff' : 'var(--bg-white)',
+                    color: form.preferences.includes(food) ? '#1890ff' : 'var(--text-secondary)',
                   }}
                 >
                   {food}
@@ -240,13 +240,13 @@ export default function MyPageEdit() {
                 {form.preferences.map((item, idx) => (
                   <span
                     key={idx}
-                    style={{ background: 'var(--bg-surface)', color: 'var(--color-info)', border: '1px solid var(--border-color)', padding: '4px 10px', borderRadius: 20, fontSize: '.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                    style={{ background: '#e6f7ff', color: '#1890ff', border: '1px solid #91d5ff', padding: '4px 10px', borderRadius: 20, fontSize: '.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
                     {item}
                     <button
                       type="button"
                       onClick={() => handleRemoveLike(item)}
-                      style={{ border: 'none', background: 'none', color: 'var(--color-info)', cursor: 'pointer', fontSize: '.85rem', padding: 0, fontWeight: 700 }}
+                      style={{ border: 'none', background: 'none', color: '#1890ff', cursor: 'pointer', fontSize: '.85rem', padding: 0, fontWeight: 700 }}
                     >
                       ×
                     </button>
@@ -268,9 +268,9 @@ export default function MyPageEdit() {
                   style={{
                     padding: '5px 14px', borderRadius: 20, border: '1.5px solid',
                     cursor: 'pointer', fontSize: '.82rem', fontWeight: 600,
-                    borderColor: form.dislikes.includes(food) ? 'var(--color-danger)' : 'var(--border-color)',
-                    background: form.dislikes.includes(food) ? '#FFF5F5' : 'var(--bg-white)',
-                    color: form.dislikes.includes(food) ? 'var(--color-danger)' : 'var(--text-secondary)',
+                    borderColor: form.dislikes.includes(food) ? '#ff4d4f' : 'var(--border-color)',
+                    background: form.dislikes.includes(food) ? '#fff1f0' : 'var(--bg-white)',
+                    color: form.dislikes.includes(food) ? '#ff4d4f' : 'var(--text-secondary)',
                   }}
                 >
                   {food}
@@ -296,13 +296,13 @@ export default function MyPageEdit() {
                 {form.dislikes.map((item, idx) => (
                   <span
                     key={idx}
-                    style={{ background: '#FFF5F5', color: 'var(--color-danger)', border: '1px solid var(--border-color)', padding: '4px 10px', borderRadius: 20, fontSize: '.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                    style={{ background: '#fff1f0', color: '#ff4d4f', border: '1px solid #ffa39e', padding: '4px 10px', borderRadius: 20, fontSize: '.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
                     {item}
                     <button
                       type="button"
                       onClick={() => handleRemoveDislike(item)}
-                      style={{ border: 'none', background: 'none', color: 'var(--color-danger)', cursor: 'pointer', fontSize: '.85rem', padding: 0, fontWeight: 700 }}
+                      style={{ border: 'none', background: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '.85rem', padding: 0, fontWeight: 700 }}
                     >
                       ×
                     </button>
