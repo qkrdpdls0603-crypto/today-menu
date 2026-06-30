@@ -29,7 +29,7 @@ export default function Terms() {
       </div>
 
       {/* 2. 탭 내비게이션 영역: 기준선 위아래로 넉넉한 세로 여백(my-20)을 주어 독립 공간 확보 */}
-      <div className="w-full border-b border-gray-200 sticky top-0 bg-white z-10 my-20">
+      <div className="w-full border-b border-gray-200 sticky top-0 bg-white z-10 my-36">
         {/* py-6을 주어 기준선 안의 글자(이용약관) 자체도 선 위아래로 여백을 가집니다 */}
         <div className="w-full flex justify-center gap-20 py-6">
           
