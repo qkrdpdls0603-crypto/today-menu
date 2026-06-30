@@ -441,14 +441,18 @@ def list_parties():
         except Exception:
             pass
 
-    parties = Party.query.filter_by(status=status)\
-                         .order_by(Party.created_at.desc()).all()
+    parties = Party.query.filter_by(status=status).order_by(Party.created_at.desc()).all()
+    
+    for p in parties:
+        p.refresh_status()
+        
     return jsonify([serialize_party(p, viewer_id) for p in parties])
 
 
 @party_bp.route('/<int:party_id>', methods=['GET'])
 def get_party(party_id):
     party    = Party.query.get_or_404(party_id)
+    party.refresh_status()
     messages = ChatMessage.query.filter_by(party_id=party_id)\
                                 .order_by(ChatMessage.created_at).all()
     viewer_id = None
@@ -524,6 +528,21 @@ def party_chat(party_id):
     db.session.commit()
     return jsonify(serialize_message(msg)), 201
 
+@party_bp.route('/<int:party_id>/close', methods=['PATCH'])
+@jwt_login_required
+def manual_close_party(party_id):
+    user_id = int(get_jwt_identity())
+    party = Party.query.get_or_404(party_id)
+    
+    if party.host_id != user_id:
+        return jsonify({'message': '호스트만 마감할 수 있습니다.'}), 403
+    
+    if party.status != StatusEnum.RECRUITING:
+        return jsonify({'message': '이미 마감된 파티입니다.'}), 400
+        
+    party.status = StatusEnum.CLOSED
+    db.session.commit()
+    return jsonify(serialize_party(party, user_id)), 200
 
 @party_bp.route('/<int:party_id>/status', methods=['PATCH'])
 @admin_required
@@ -537,6 +556,49 @@ def update_party_status(party_id):
     db.session.commit()
     return jsonify(serialize_party(party))
 
+# 파티 강퇴 (Host 전용)
+@party_bp.route('/<int:party_id>/kick/<int:target_user_id>', methods=['DELETE'])
+@jwt_login_required
+def kick_member(party_id, target_user_id):
+    current_user_id = int(get_jwt_identity())
+    party = Party.query.get_or_404(party_id)
+    
+    if party.host_id != current_user_id:
+        return jsonify({'message': '호스트만 강퇴할 수 있습니다.'}), 403
+    
+    member = PartyMember.query.filter_by(party_id=party_id, user_id=target_user_id, is_host=False).first_or_404()
+    db.session.delete(member)
+    db.session.commit()
+    return jsonify({'message': '강퇴되었습니다.'}), 200
+
+# 파티 모임 종료 (Host 전용)
+@party_bp.route('/<int:party_id>/finish', methods=['PATCH'])
+@jwt_login_required
+def finish_party(party_id):
+    current_user_id = int(get_jwt_identity())
+    party = Party.query.get_or_404(party_id)
+    
+    if party.host_id != current_user_id:
+        return jsonify({'message': '호스트만 종료할 수 있습니다.'}), 403
+        
+    party.status = StatusEnum.COMPLETED
+    db.session.commit()
+    return jsonify({'message': '모임이 종료되었습니다.'}), 200
+
+# 불량 유저 신고 (공통)
+@party_bp.route('/<int:party_id>/report', methods=['POST'])
+@jwt_login_required
+def report_user(party_id):
+    reporter_id = int(get_jwt_identity())
+    data = request.get_json()
+    target_id = data.get('target_id')
+    reason = data.get('reason')
+    
+    # 신고 로직 (Report 모델 저장)
+    new_report = Report(reporter_id=reporter_id, target_id=target_id, reason=reason, party_id=party_id)
+    db.session.add(new_report)
+    db.session.commit()
+    return jsonify({'message': '신고가 접수되었습니다.'}), 201
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MYPAGE
