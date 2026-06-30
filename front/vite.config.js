@@ -7,6 +7,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+<<<<<<< HEAD
+=======
+      // 모든 /api 시작 요청만 백엔드로 토스
+>>>>>>> main
       '/api': { 
         target: 'http://localhost:5000', 
         changeOrigin: true,

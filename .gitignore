@@ -13,7 +13,6 @@ migrations/
 *.sqlite3
 
 # ===== Generated / Runtime =====
-data/
 crawled_data/
 logs/
 *.log

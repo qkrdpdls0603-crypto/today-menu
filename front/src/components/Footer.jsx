@@ -31,6 +31,7 @@ export default function Footer() {
 
   return (
     <footer className="site-footer">
+
         <div className="container footer-grid">
           <div>
             <strong className="footer-logo-text">오늘 뭐먹지? ⏰</strong>
@@ -53,10 +54,10 @@ export default function Footer() {
           </div>
           <div>
             <h4>회사</h4>
-            <a href="#">회사 소개</a>
+            <Link to="/company">회사 소개</Link>
             <a href="#">채용 정보</a>
-            <a href="#">개인정보 처리방침</a>
-            <a href="#">이용약관</a>
+            <Link to="/terms" state={{ defaultTab: "privacy" }}>개인정보 처리방침</Link>
+            <Link to="/terms" state={{ defaultTab: "terms" }}>이용약관</Link>
           </div>
           <div>
             <h4>앱 다운로드</h4>
