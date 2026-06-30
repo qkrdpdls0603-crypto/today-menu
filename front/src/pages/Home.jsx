@@ -5,7 +5,6 @@ import { getRestaurants, getNearby } from '../api/services'
 import { useAuth } from '../App'
 import KakaoMap from '../components/KakaoMap'
 import RestaurantSearch from '../components/RestaurantSearch'
-import ChatModal from '../pages/ChatModal'
 
 const adBannerClass =
   'w-full overflow-hidden rounded-[12px] bg-white max-md:h-[70px]'
@@ -128,7 +127,6 @@ export default function Home() {
   const [bannerIdx, setBannerIdx] = useState(0)
   const [showSearch, setShowSearch] = useState(false)
   const bannerTimer = useRef(null)
-  const [isChatOpen, setIsChatOpen] = useState(false)
 
   useEffect(() => {
     getRestaurants({ cat: '전체', page: 1 })
@@ -325,7 +323,6 @@ export default function Home() {
         </div>
       </section>
 
-
       {user && (
         <section className="nearby-section">
           <div className="section-title">
@@ -336,17 +333,6 @@ export default function Home() {
               </button>
               <button className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-black)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5" onClick={findNearby}>
                 {locStatus === 'loading' ? '확인 중...' : '위치 불러오기'}
-
-          <div className="quick-card ai-card">
-            <div>
-              <h3>오늘 뭐먹지?</h3>
-              <p>예산, 시간, 내 취향을 분석해서<br />오늘의 메뉴를 추천해드려요!</p>
-              <button 
-                type="button" 
-                onClick={() => setIsChatOpen(true)} 
-                className="btn btn-light"
-              >
-                추천 받기 →
               </button>
             </div>
           </div>
@@ -395,8 +381,6 @@ export default function Home() {
           />
         </Link>
       </section>
-      </main>
-      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   )
 }
