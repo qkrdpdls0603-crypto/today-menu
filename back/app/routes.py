@@ -3,6 +3,7 @@ import math
 import requests as req_lib
 from datetime import datetime
 from functools import wraps
+from sqlalchemy.exc import IntegrityError
 
 from flask import Blueprint, request, jsonify, send_from_directory
 from flask_jwt_extended import (
@@ -11,7 +12,7 @@ from flask_jwt_extended import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
-
+from .models import Report, db
 from app import db
 from app.models import (
     User, Restaurant, Party, PartyMember,
@@ -632,12 +633,85 @@ def finish_party(party_id):
     db.session.commit()
     return jsonify({'message': '모임이 종료되었습니다.'}), 200
 
-# 불량 유저 신고 (공통) - Report 모델 추가 전 임시 처리
+# 불량 유저 신고 (공통)
 @party_bp.route('/<int:party_id>/report', methods=['POST'])
 @jwt_login_required
 def report_user(party_id):
-    # TODO: Report 모델 추가 후 구현 예정
-    return jsonify({'message': '신고가 접수되었습니다. (준비 중)'}), 201
+    reporter_id = get_jwt_identity()
+    data = request.get_json()
+    target_id = data.get('target_id')
+    reason = data.get('reason')
+    
+    if reporter_id == target_id:
+        return jsonify({'message': '본인은 신고할 수 없습니다.'}), 400
+
+    try:
+        new_report = Report(
+            party_id=party_id,
+            reporter_id=reporter_id,
+            target_id=target_id,
+            reason=reason
+        )
+        db.session.add(new_report)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'message': '이미 이 사용자를 신고하셨습니다.'}), 400
+
+    report_count = Report.query.filter_by(party_id=party_id, target_id=target_id).count()
+
+    if report_count >= 3:
+        party = Party.query.get_or_404(party_id)
+        target_user = User.query.get_or_404(target_id)
+        
+        if target_user not in party.kicked_users:
+            party.kicked_users.append(target_user)
+            member = PartyMember.query.filter_by(party_id=party_id, user_id=target_id).first()
+            if member:
+                db.session.delete(member)
+            db.session.commit()
+            return jsonify({'message': '신고가 3회 누적되어 해당 유저가 자동 강퇴되었습니다.', 'kicked': True}), 200
+
+    return jsonify({'message': '신고가 접수되었습니다.', 'kicked': False}), 201
+
+@party_bp.route('/admin/reports', methods=['GET'])
+@jwt_login_required
+def get_all_reports():
+    # 관리자 권한 확인 (User 모델의 role 필드 사용)
+    current_user = User.query.get(get_jwt_identity())
+    if current_user.role != RoleEnum.ADMIN:
+        return jsonify({'message': '권한이 없습니다.'}), 403
+
+    reports = Report.query.order_by(Report.created_at.desc()).all()
+    
+    return jsonify([{
+        'report_id': r.report_id,
+        'party_id': r.party_id,
+        'reporter': r.reporter.nickname,
+        'target': r.target.nickname,
+        'reason': r.reason,
+        'created_at': r.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'is_processed': r.is_processed
+    } for r in reports]), 200
+
+@party_bp.route('/<int:party_id>', methods=['DELETE'])
+@jwt_login_required
+def delete_party(party_id):
+    current_user_id = int(get_jwt_identity())
+    party = Party.query.get_or_404(party_id)
+ 
+    if party.host_id != current_user_id:
+        return jsonify({'message': '호스트만 파티를 삭제할 수 있습니다.'}), 403
+    
+    if len(party.members) > 1:
+        return jsonify({'message': '이미 참여 중인 멤버가 있어 파티를 삭제할 수 없습니다. 파티를 종료하거나 멤버를 모두 내보내주세요.'}), 400
+    
+    Report.query.filter_by(party_id=party_id).delete()
+
+    db.session.delete(party)
+    db.session.commit()
+    
+    return jsonify({'message': '파티가 성공적으로 삭제되었습니다.'}), 200
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MYPAGE
