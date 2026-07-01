@@ -452,7 +452,7 @@ button {
 .progress-fill { height: 100%; background: var(--color-success); border-radius: 4px; transition: width .3s; }
 .progress-fill.full { background: var(--color-danger); }
 .progress-label { font-size: .75rem; color: var(--text-muted); margin-top: 4px; text-align: right; }
-.party-detail-hero { background: var(--bg-surface); border-radius: var(--border-radius-lg); overflow: hidden; aspect-ratio: 16/6; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: var(--text-muted); margin-bottom: 20px; }
+.party-detail-hero { border-radius: var(--border-radius-lg); overflow: hidden; aspect-ratio: 16/6; margin-bottom: 20px; }
 .party-info-box { background: var(--bg-white); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 18px; margin-bottom: 14px; }
 .party-info-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; font-size: .88rem; border-bottom: 1px solid var(--bg-surface); }
 .party-info-row:last-child { border-bottom: none; }
