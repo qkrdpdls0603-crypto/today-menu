@@ -42,26 +42,16 @@ export default function Header() {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-[500] h-[var(--header-h)] border-b border-[rgba(243,231,221,0.9)] bg-white/95 backdrop-blur-2xl">
-  <div className={`${pageContainer} grid h-full grid-cols-[minmax(220px,1fr)_minmax(340px,420px)_minmax(220px,1fr)] items-center gap-6 max-lg:grid-cols-[auto_minmax(240px,1fr)_auto] max-md:grid-cols-[1fr_auto]`}>
-    
-    <Link
-  to="/"
-  className="inline-flex justify-self-start items-center text-[1.72rem] font-black tracking-[-0.04em] text-[#0E0C0B] max-md:text-[1.35rem]"
-  onClick={() => setMobileOpen(false)}
->
-  
-  {/* 🌟 2. 이미지가 원래 텍스트가 있던 왼쪽 구석 라인에 정확히 안착합니다.
-      만약 보이지 않는 여백 때문에 오른쪽 글자가 너무 멀어진다면 -mr-[16px] 숫자를 키워 밀착시키세요! */}
-  <img 
-    src="/img/icon/logo.png" 
-    alt="로고" 
-    className="h-8 w-auto object-contain max-md:h-6 -mr-[12px]" 
-  />
-  
-  {/* 🌟 3. 글자는 이제 왼쪽 끝 라인에서 이미지 두께만큼 자연스럽게 우측으로 밀리며 시작됩니다. */}
-  <span className="text-black ml-5">오늘 뭐먹지?</span>
-  
-</Link>
+        <div className={`${pageContainer} grid h-full grid-cols-[minmax(220px,1fr)_minmax(340px,420px)_minmax(220px,1fr)] items-center gap-6 max-lg:grid-cols-[auto_minmax(240px,1fr)_auto] max-md:grid-cols-[1fr_auto]`}>
+          <Link
+            to="/"
+            className="inline-flex justify-self-start items-center gap-2 text-[1.72rem] font-black tracking-[-0.04em] text-[#0E0C0B] max-md:text-[1.35rem]"
+            onClick={() => setMobileOpen(false)}
+          >
+            <img src="/img/icon/logo.png" alt="로고" className="h-8 w-auto object-contain max-md:h-6"
+              onError={(e) => { e.target.style.display='none' }} />
+            <span>오늘 뭐먹지?</span>
+          </Link>
 
           <div className="max-md:hidden">
             <form
@@ -77,10 +67,10 @@ export default function Header() {
               />
               <button
                 type="submit"
-                className="w-12 border-0 bg-[linear-gradient(135deg,var(--color-primary),#F98082)] text-[1.8rem] font-bold text-white"
+                className="w-12 border-0 bg-[linear-gradient(135deg,var(--color-primary),#F98082)] text-[1.35rem] font-bold text-white"
                 aria-label="검색"
               >
-                <span className="relative -top-[2px] leading-none">⌕</span>
+                ⌕
               </button>
             </form>
           </div>
@@ -88,13 +78,13 @@ export default function Header() {
           <div className="flex items-center justify-end gap-[26px] text-[0.9rem] font-extrabold">
             {user ? (
               <button onClick={handleLogout} className={`${headerIconLink} max-md:hidden`}>
-                <img src="/img/icon/logout.png" className="h-[35px] w-[35px] object-contain" alt="logout" />
+                <img src="/img/logout.png" className="h-[35px] w-[35px] object-contain" alt="logout" />
               </button>
             ) : (
               <>
                 <Link to="/mypage" className={`${headerIconLink} max-md:hidden`} />
                 <Link to="/login" className={`${headerIconLink} max-md:hidden`}>
-                  <img src="/img/icon/login.png" className="h-[35px] w-[35px] object-contain" alt="login" />
+                  <img src="/img/login.png" className="h-[35px] w-[35px] object-contain" alt="login" />
                 </Link>
               </>
             )}
@@ -122,7 +112,7 @@ export default function Header() {
 
           <Link to="/mypage" className={`${headerIconLink} justify-self-end`}>
             <div className="inline-flex min-h-[42px] min-w-[178px] items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-secondary),var(--color-accent))] px-[22px] text-[0.92rem] font-black text-[#5A3507] shadow-[0_8px_18px_rgba(254,185,92,0.25)] empty:invisible">
-              {user ? <span>{user.nickname}님 환영합니다</span> : null}
+              {user ? <span><Link to="/mypage" className="nav-welcome" style={{textDecoration:"none"}}>{user.nickname}님 환영합니다</Link></span> : null}
             </div>
           </Link>
         </div>
@@ -146,7 +136,7 @@ export default function Header() {
                   {user.nickname?.[0] ?? '?'}
                 </div>
                 <div>
-                  <div>{user.nickname}님 환영합니다</div>
+                  <div><Link to="/mypage" className="nav-welcome" style={{textDecoration:"none"}}>{user.nickname}님 환영합니다</Link></div>
                   <small className="text-[var(--text-muted)]">{user.email}</small>
                 </div>
               </div>
