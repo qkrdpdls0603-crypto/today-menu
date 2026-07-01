@@ -30,13 +30,16 @@ export default function Footer() {
           {/* 소개 */}
           <Link className={footerLinkClass} to="/company">소개</Link>
           {/* 이용안내 = 이용약관 탭 */}
+
           <Link className={footerLinkClass} to="/terms2">이용안내</Link>
+
           {/* 공지사항 (비즈니스 문의 포함) */}
           <Link className={footerLinkClass} to="/notice">공지사항</Link>
           {/* 고객센터 */}
           <Link className={footerLinkClass} to="/support">고객센터</Link>
           {/* 개인정보처리방침 탭만 */}
           <Link className={footerLinkClass} to="/terms">개인정보처리방침</Link>
+
         </div>
 
         {/* 앱 다운로드 */}
