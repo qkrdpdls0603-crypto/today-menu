@@ -26,6 +26,7 @@ export default function MyPage() {
   useEffect(() => {
     getMyPage()
       .then((d) => {
+        console.log(d)
         setData(d)
         setSavedLocs(d.user.saved_locations ?? [])
       })
@@ -123,7 +124,7 @@ export default function MyPage() {
     </div>
   )
 
-  const { user, my_parties, rec_logs } = data
+  const { user = {}, my_parties = [], rec_logs = [] } = data;
   const likes = processTags(user.preferences?.likes)
   const dislikes = processTags(user.preferences?.dislikes)
   const liked_logs = rec_logs.filter((r) => r.is_liked)
