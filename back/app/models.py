@@ -155,3 +155,4 @@ class Inquiry(db.Model):
             'date': self.created_at.strftime('%Y-%m-%d'),
             'writer': self.writer.nickname if self.writer else "알 수 없음"
         }
+

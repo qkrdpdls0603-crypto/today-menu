@@ -219,7 +219,6 @@ const handleCancelParty = async () => {
     }
   }
 
-
 const handleFinishParty = async () => {
   if (!window.confirm("파티를 종료하시겠습니까? 종료 후에는 멤버들의 매너 점수를 평가할 수 있습니다.")) return;
   try {
@@ -251,7 +250,6 @@ const handleDeleteParty = async () => {
 const handleJoinParty = async () => {
   await handleJoin();
 };
-
 
   const dummyReviews = [
     { nick: '김철수', score: 5, text: '분위기 좋고 음식도 맛있었어요! 다음에 또 참여하고 싶습니다.' },
@@ -550,7 +548,6 @@ const handleJoinParty = async () => {
                   강퇴
                 </button>
               )}
-
               {user && m.user?.user_id !== user.user_id && isMember && (
                 <button 
                   onClick={() => openReportModal(m.user.user_id)} 
@@ -562,7 +559,6 @@ const handleJoinParty = async () => {
 
                 </button>
               )}
-
 
 
               {/* 일반 참여자 본인 탈퇴 버튼 */}
