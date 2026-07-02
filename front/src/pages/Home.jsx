@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { getRestaurants, getNearby } from '../api/services'
 import { useAuth } from '../App'
@@ -165,22 +165,38 @@ export default function Home() {
   const visibleRestaurants = trending.length ? trending : SAMPLE_RESTAURANTS
 
   const handleCafeteriaLike = async (item) => {
-    if (item.log_id != null) {
-      const res = await toggleLike(item.log_id)
-      setTrending((prev) =>
-        prev.map((r) =>
-          r.id === item.id ? { ...r, is_liked: res.liked } : r
+    try {
+      if (item.log_id != null) {
+        // 이미 추천 로그 있으면 찜 토글
+        const res = await toggleLike(item.log_id)
+        setTrending((prev) =>
+          prev.map((r) =>
+            r.id === item.id ? { ...r, is_liked: res.liked } : r
+          )
         )
-      )
-      return
+      } else {
+        // 추천 로그 없으면 API로 생성 후 찜
+        const res = await createLikeLog(item.id)
+        setTrending((prev) =>
+          prev.map((r) =>
+            r.id === item.id ? { ...r, is_liked: true, log_id: res.log_id } : r
+          )
+        )
+        setLikedCafeteriaIds((prev) => {
+          const next = new Set(prev)
+          next.add(item.id)
+          return next
+        })
+      }
+    } catch {
+      // 비로그인 시 로컬만 토글
+      setLikedCafeteriaIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(item.id)) next.delete(item.id)
+        else next.add(item.id)
+        return next
+      })
     }
-
-    setLikedCafeteriaIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(item.id)) next.delete(item.id)
-      else next.add(item.id)
-      return next
-    })
   }
 
   return (
@@ -311,7 +327,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-
 
       <section className={quickPanelsClass}>
         <div className={`${quickCardBaseClass} ${quickMapCardClass}`}>
