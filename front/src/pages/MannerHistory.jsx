@@ -19,7 +19,7 @@ export default function MannerHistory() {
   )
   if (!data) return null
 
-  const { manner_score, received, given, stats } = data
+  const { manner_score, received = [], given = [], stats = {} } = data
 
   return (
     <>
@@ -33,15 +33,16 @@ export default function MannerHistory() {
       {/* 현재 점수 */}
       <div style={{
         background: 'linear-gradient(135deg, var(--color-primary), #F98082)',
-        borderRadius: 16, padding: 28, marginBottom: 20, color: '#fff', textAlign: 'center',
+        borderRadius: 16, padding: 28, marginBottom: 20,
+        color: '#fff', textAlign: 'center',
       }}>
         <div style={{ fontSize: '3.5rem', fontWeight: 900, lineHeight: 1 }}>{manner_score}°C</div>
         <div style={{ fontSize: '.9rem', opacity: .8, marginTop: 6 }}>현재 매너온도</div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 16 }}>
           {[
-            ['총 받은 투표', stats.total_received],
-            ['👍 긍정', stats.positive],
-            ['👎 부정', stats.negative],
+            ['총 받은 투표', stats.total_received ?? 0],
+            ['👍 긍정', stats.positive ?? 0],
+            ['👎 부정', stats.negative ?? 0],
           ].map(([label, val]) => (
             <div key={label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.4rem', fontWeight: 900 }}>{val}</div>
@@ -51,29 +52,26 @@ export default function MannerHistory() {
         </div>
       </div>
 
-      {/* 온도 가이드 */}
+      {/* 온도 범위 안내 */}
       <div className="profile-section" style={{ marginBottom: 16 }}>
         <h3 style={{ marginBottom: 14 }}>온도 범위 안내</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[
-            ['20~30°C', '주의 필요', '#FC8181'],
-            ['30~36°C', '보통', '#F6AD55'],
-            ['36~43°C', '따뜻해요', '#68D391'],
-            ['43~50°C', '매우 따뜻해요 🔥', '#38A169'],
-          ].map(([range, label, color]) => (
-            <div key={range} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 80, fontSize: '.82rem', fontWeight: 700, color,
-                background: color + '22', borderRadius: 6, padding: '3px 8px', textAlign: 'center',
-              }}>{range}</div>
-              <span style={{ fontSize: '.85rem', color: 'var(--text-secondary)' }}>{label}</span>
-              {manner_score >= parseFloat(range.split('~')[0]) &&
-               manner_score < parseFloat(range.split('~')[1]) && (
-                <span style={{ fontSize: '.75rem', background: color, color: '#fff', borderRadius: 10, padding: '2px 8px', fontWeight: 700 }}>현재</span>
-              )}
-            </div>
-          ))}
-        </div>
+        {[
+          [20, 30, '주의 필요', '#FC8181'],
+          [30, 36, '보통', '#F6AD55'],
+          [36, 43, '따뜻해요', '#68D391'],
+          [43, 50, '매우 따뜻해요 🔥', '#38A169'],
+        ].map(([min, max, label, color]) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div style={{
+              width: 80, fontSize: '.82rem', fontWeight: 700, color,
+              background: color + '22', borderRadius: 6, padding: '3px 8px', textAlign: 'center',
+            }}>{min}~{max}°C</div>
+            <span style={{ fontSize: '.85rem', color: 'var(--text-secondary)' }}>{label}</span>
+            {manner_score >= min && manner_score < max && (
+              <span style={{ fontSize: '.75rem', background: color, color: '#fff', borderRadius: 10, padding: '2px 8px', fontWeight: 700 }}>현재</span>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* 점수 변동 요인 */}
@@ -107,31 +105,24 @@ export default function MannerHistory() {
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: '.88rem' }}>
             아직 받은 투표가 없습니다.
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {received.map((v, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 14px', background: 'var(--bg-surface)',
-                borderRadius: 10, border: '1px solid var(--border-color)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '1.2rem' }}>{v.is_positive ? '👍' : '👎'}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '.88rem' }}>{v.voter}님이 투표</div>
-                    <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{v.voted_at}</div>
-                  </div>
-                </div>
-                <span style={{
-                  fontWeight: 900, fontSize: '.9rem',
-                  color: v.is_positive ? 'var(--color-success)' : 'var(--color-danger)',
-                }}>
-                  {v.is_positive ? '+1.0°' : '-1.0°'}
-                </span>
+        ) : received.map((v, i) => (
+          <div key={i} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 14px', background: 'var(--bg-surface)',
+            borderRadius: 10, border: '1px solid var(--border-color)', marginBottom: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '1.2rem' }}>{v.is_positive ? '👍' : '👎'}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '.88rem' }}>{v.voter}님이 투표</div>
+                <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{v.voted_at}</div>
               </div>
-            ))}
+            </div>
+            <span style={{ fontWeight: 900, color: v.is_positive ? 'var(--color-success)' : 'var(--color-danger)' }}>
+              {v.is_positive ? '+1.0°' : '-1.0°'}
+            </span>
           </div>
-        )}
+        ))}
       </div>
 
       {/* 내가 준 투표 */}
@@ -141,25 +132,21 @@ export default function MannerHistory() {
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: '.88rem' }}>
             아직 투표한 내역이 없습니다.
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {given.map((v, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 14px', background: 'var(--bg-surface)',
-                borderRadius: 10, border: '1px solid var(--border-color)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '1.2rem' }}>{v.is_positive ? '👍' : '👎'}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '.88rem' }}>{v.target}님에게 투표</div>
-                    <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{v.voted_at}</div>
-                  </div>
-                </div>
+        ) : given.map((v, i) => (
+          <div key={i} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 14px', background: 'var(--bg-surface)',
+            borderRadius: 10, border: '1px solid var(--border-color)', marginBottom: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '1.2rem' }}>{v.is_positive ? '👍' : '👎'}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '.88rem' }}>{v.target}님에게 투표</div>
+                <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{v.voted_at}</div>
               </div>
-            ))}
+            </div>
           </div>
-        )}
+        ))}
       </div>
     </>
   )
