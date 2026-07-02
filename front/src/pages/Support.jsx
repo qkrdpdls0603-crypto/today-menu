@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function Support() {
   // 0. 사용자 권한 상태 (테스트용)
@@ -28,21 +28,26 @@ export default function Support() {
     { id: 4, q: "최소 주문 금액 매칭은 어떻게 정해지나요?", a: "파티원들이 각자 고른 메뉴의 합계 금액이 해당 식당의 최소 주문 금액을 넘기면 자동으로 매칭 성공 알림이 갑니다." },
   ];
 
-  // 5. 1:1 문의사항 데이터 (확인용 데이터 총 12개 세팅)
-  const [inquiries, setInquiries] = useState([
-    { id: 1, title: "방장이 약속 장소에 나오지 않았어요.", content: "오늘 점심 파티 약속인데 방장님이 아무 말 없이 안 나오셨어요. 패널티 기능이 있나요?", writer: "leewh", date: "2026-06-30", answer: "안녕하세요, 투데이메뉴 관리자입니다. 불량 유저 이용 제한을 위해 매너 점수 기반 패널티 시스템을 즉시 가동하겠습니다." },
-    { id: 2, title: "룰렛 게임 판이 도중에 멈추는 현상이 있습니다.", content: "모바일 크롬 브라우저로 룰렛 돌릴 때 화면이 멈추는데 확인 부탁드립니다.", writer: "gildong", date: "2026-06-29", answer: null },
-    { id: 3, title: "배달 팁 정산은 어떻게 n분의 1 하나요?", content: "정산하기 버튼을 누르면 인원수대로 자동 계산되나요?", writer: "user03", date: "2026-06-28", answer: null },
-    { id: 4, title: "닉네임 글자수 제한이 궁금합니다.", content: "최대 몇 자까지 생성 가능한가요?", writer: "user04", date: "2026-06-27", answer: "최대 8자까지 가능합니다." },
-    { id: 5, title: "카카오 로그인 오류가 발생합니다.", content: "인증 세션이 만료되었다고 자꾸 튕기네요.", writer: "user05", date: "2026-06-26", answer: null },
-    { id: 6, title: "파티 모집 글 수정 기능이 안 보여요.", content: "이미 올린 글의 인원수를 바꾸고 싶습니다.", writer: "user06", date: "2026-06-25", answer: null },
-    { id: 7, title: "매너 점수 복구 기준이 있나요?", content: "클린 유저로 활동하면 점수가 다시 오르나요?", writer: "user07", date: "2026-06-24", answer: "좋은 평가를 받으면 서서히 복구됩니다." },
-    { id: 8, title: "알림 소리가 안 납니다.", content: "채팅이 와도 푸시 알림이나 소리가 안 들려요.", writer: "user08", date: "2026-06-23", answer: null },
-    { id: 9, title: "위치 인증이 계속 강남역으로 잡혀요.", content: "지금 수원인데 gps 매칭이 안 맞습니다.", writer: "user09", date: "2026-06-22", answer: null },
-    { id: 10, title: "비회원도 맛집 조회는 가능한가요?", content: "매칭 말고 메뉴판 구경은 로그아웃해도 되나요?", writer: "user10", date: "2026-06-21", answer: "네, 둘러보기는 가능합니다." },
-    { id: 11, title: "버그 제보합니다.", content: "결정 게임 애니메이션이 끝날 때 화면이 밀립니다.", writer: "user11", date: "2026-06-20", answer: null },
-    { id: 12, title: "건의사항 있습니다.", content: "다크모드 기능 추가해 주시면 안 될까요?", writer: "user12", date: "2026-06-19", answer: null },
-  ]);
+  // 4. 1:1 문의사항 로컬 목록 상태
+  const [inquiries, setInquiries] = useState([]); 
+  
+  // 🌟 서버에서 데이터 가져오기
+  useEffect(() => {
+    const fetchInquiries = async () => {
+      try {
+        const response = await fetch('/api/support/inquiries'); 
+        if (response.ok) {
+          const data = await response.json();
+          setInquiries(data);
+        }
+      } catch (error) {
+        console.error("문의 목록을 가져오는 중 오류 발생:", error);
+      }
+    };
+
+    fetchInquiries();
+  }, []);
+
 
   // 6. 문의글 아코디언 핸들러
   const handleInquiryToggle = (id) => {
@@ -50,48 +55,80 @@ export default function Support() {
     setAdminReplyText(""); 
   };
 
-  // 7. 모달 안에서 새 문의글 등록 처리 (유효성 체크 검사 포함)
-  const handleCreateInquiry = (e) => {
-    e.preventDefault();
-    setFormError("");
+  // ✍️ 일반 회원 질문 생성 (모달 내부에서 작동)
+  const handleCreateInquiry = async (e) => {
+  e.preventDefault();
+  setFormError("");
 
-    if (userRole !== "user") return;
 
-    if (newTitle.trim().length < 4) {
-      setFormError("⚠️ 제목은 최소 4자 이상 입력해 주세요.");
-      return;
+  const token = localStorage.getItem('token');
+  console.log("현재 토큰값:", token);
+
+  if (userRole !== "user") return;
+
+  if (newTitle.trim().length < 4) {
+    setFormError("제목은 최소 4자 이상 입력해 주세요.");
+    return;
+  }
+  if (newContent.trim().length < 10) {
+    setFormError("내용은 상세한 확인을 위해 10자 이상 적어주세요.");
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/support/inquiries', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        title: newTitle.trim(),
+        content: newContent.trim()
+      })
+    });
+
+    if (response.ok) {
+      const savedInquiry = await response.json();
+      setInquiries([savedInquiry, ...inquiries]);
+      setNewTitle("");
+      setNewContent("");
+      setIsInquiryModalOpen(false);
+      alert("문의사항이 서버에 정상적으로 등록되었습니다.");
+    } else {
+      setFormError("서버 저장에 실패했습니다.");
     }
-    if (newContent.trim().length < 10) {
-      setFormError("⚠️ 내용은 상세한 확인을 위해 10자 이상 적어주세요.");
-      return;
+  } catch (error) {
+    setFormError("네트워크 연결 오류가 발생했습니다.");
+  }
+};
+
+  // 👑 관리자 답변 등록
+  const handleAddAnswer = async (id) => {
+  if (userRole !== "admin") return;
+  if (!adminReplyText.trim()) return alert("답변 내용을 입력하세요.");
+
+
+  try {
+    const response = await fetch(`/api/support/inquiries/${id}/answer`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer: adminReplyText })
+    });
+
+    if (response.ok) {
+      setInquiries(inquiries.map(item => 
+        item.id === id ? { ...item, answer: adminReplyText } : item
+      ));
+      setAdminReplyText("");
+      alert("👑 답변 등록이 완료되었습니다.");
+    } else {
+      alert("⚠️ 답변 등록 실패.");
     }
-
-    const newInquiry = {
-      id: Date.now(),
-      title: newTitle.trim(),
-      content: newContent.trim(),
-      writer: "leewh(회원)",
-      date: "2026-06-30",
-      answer: null
-    };
-
-    setInquiries([newInquiry, ...inquiries]);
-    setNewTitle("");
-    setNewContent("");
-    setIsInquiryModalOpen(false); // 창 닫기
-    setCurrentPage(1);           // 첫 페이지로 리셋해서 내가 쓴 글 확인
-    alert("📝 문의사항이 리스트 맨 앞에 임시 등록되었습니다.");
-  };
-
-  // 8. 관리자 답변 등록 처리
-  const handleAddAnswer = (id) => {
-    if (userRole !== "admin") return;
-    if (!adminReplyText.trim()) return alert("답변 내용을 입력하세요.");
-
-    setInquiries(inquiries.map(item => item.id === id ? { ...item, answer: adminReplyText } : item));
-    setAdminReplyText("");
-    alert("👑 답변 등록이 완료되었습니다.");
-  };
+  } catch (error) {
+    console.error("오류 발생:", error);
+  }
+};
 
   // 🔍 [필터링 및 페이징] 실시간 내부 검색 반영
   const filteredFaqs = faqData.filter(item => 

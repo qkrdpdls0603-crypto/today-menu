@@ -48,17 +48,20 @@ def create_app():
         supports_credentials=True,
     )
 
+
     CORS(app,
          supports_credentials=True,
          resources={r'/*': {'origins': _allowed_origins()}})
 
-    from app.routes import main_bp, auth_bp, menu_bp, party_bp, mypage_bp, api_bp
+    from app.routes import main_bp, auth_bp, menu_bp, party_bp, mypage_bp, api_bp, support_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(menu_bp)
     app.register_blueprint(party_bp)
     app.register_blueprint(mypage_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(support_bp)
+
 
     with app.app_context():
         try:

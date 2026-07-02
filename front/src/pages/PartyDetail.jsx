@@ -24,10 +24,20 @@ export default function PartyDetail() {
   const [voteRemaining, setVoteRemaining] = useState(2)
   const [votedToday,    setVotedToday]    = useState([])
   const [voteMsg,       setVoteMsg]       = useState('')
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [targetReportId, setTargetReportId] = useState(null);
+  const [reportReason, setReportReason] = useState('');
 
   const isRecruiting = party ? party.status === 'RECRUITING' : false;
   const isMember = party ? party.is_member : false;
   const pct = party ? Math.min(Math.round((party.member_count / party.max_people) * 100), 100) : 0;
+  const isHost = user && party ? party.host?.user_id === user.user_id : false;
+  const hasMembers = party ? party.members.length > 1 : false;
+
+  const openReportModal = (userId) => {
+  setTargetReportId(userId);
+  setIsReportModalOpen(true);
+};
 
   // ── 파티 정보 로드 ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -117,7 +127,6 @@ export default function PartyDetail() {
       setTimeout(() => setVoteMsg(''), 3000)
     } catch (e) { setVoteMsg(e.response?.data?.message ?? '투표 실패'); setTimeout(() => setVoteMsg(''), 3000) }
   }
-
   const handleKick = async (targetUserId) => {
     try {
       await api.delete(`/api/party/${partyId}/kick/${targetUserId}`)
@@ -131,20 +140,53 @@ export default function PartyDetail() {
     try { await api.delete(`/api/party/${partyId}/leave`); alert('파티에서 퇴장했습니다.'); navigate('/party') }
     catch (e) { alert(e.response?.data?.message || '퇴장 오류') }
   }
-  const handleReport = async (targetId) => {
-    const reason = window.prompt('신고 사유를 입력해주세요:')
-    if (!reason?.trim()) return
-    try { await api.post(`/api/party/${partyId}/report`, { target_id: targetId, reason }); alert('신고 접수됐습니다.') }
-    catch (e) { alert(e.response?.data?.message || '신고 실패') }
+
+  const handleReport = async (targetId, reason) => {
+  if (!reason?.trim()) return alert("신고 사유를 입력해주세요.");
+
+  try {
+    const response = await api.post(`/api/party/${partyId}/report`, { 
+      target_id: targetId, 
+      reason: reason 
+    });
+
+    if (response.data.kicked) {
+      alert("신고가 3회 누적되어 해당 사용자가 강제 퇴장되었습니다.");
+    } else {
+      alert("신고가 접수되었습니다.");
+    }
+    
+    setIsReportModalOpen(false); 
+    setReportReason('');
+
+    const updatedParty = await getParty(partyId);
+    setParty(updatedParty);
+    
+  } catch (e) {
+    alert(e.response?.data?.message || "신고 처리에 실패했습니다.");
+    setIsReportModalOpen(false);
   }
-  const handleCancelParty = async () => {
-    if (!window.confirm('파티를 취소하시겠습니까? 취소 후에는 복구할 수 없습니다.')) return
-    try {
-      await api.patch(`/api/party/${partyId}/finish`)
-      alert('파티가 취소되었습니다.')
-      navigate('/party')
-    } catch (e) { alert(e.response?.data?.message || '파티 취소 실패') }
+};
+
+const handleCancelParty = async () => {
+  if (party.members && party.members.length > 1) {
+    alert('이미 다른 파티원이 참여 중입니다. 먼저 파티원을 내보내거나 강퇴한 후 취소할 수 있습니다.');
+    return;
   }
+
+  if (!window.confirm('파티를 취소하시겠습니까? 취소 후에는 복구할 수 없습니다.')) return;
+
+  try {
+    const response = await api.patch(`/api/party/${partyId}/cancel`);
+    
+    alert(response.data.message || '파티가 취소되었습니다.');
+    navigate('/party');
+    
+  } catch (e) {
+    const errMsg = e.response?.data?.message || '파티 취소 중 오류가 발생했습니다.';
+    alert(errMsg);
+  }
+};
 
   const handleStatusChange = async (newStatus) => {
     if (!window.confirm(newStatus === 'CLOSED' ? '모집을 마감하시겠습니까?' : '모집을 재개하시겠습니까?')) return
@@ -177,6 +219,37 @@ export default function PartyDetail() {
     }
   }
 
+const handleFinishParty = async () => {
+  if (!window.confirm("파티를 종료하시겠습니까? 종료 후에는 멤버들의 매너 점수를 평가할 수 있습니다.")) return;
+  try {
+    await closeParty(partyId);
+    alert("파티가 종료되었습니다.");
+    const d = await getParty(partyId);
+    setParty(d);
+  } catch (e) {
+    alert("파티 종료 중 오류가 발생했습니다.");
+  }
+};
+
+const handleDeleteParty = async () => {
+  if (hasMembers) {
+    alert("참여 중인 파티원이 있어 삭제할 수 없습니다.");
+    return;
+  }
+  if (!window.confirm("정말로 파티를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+  
+  try {
+    await api.delete(`/api/party/${partyId}`);
+    alert("파티가 삭제되었습니다.");
+    navigate('/party');
+  } catch (e) {
+    alert(e.response?.data?.message || "삭제 실패");
+  }
+};
+
+const handleJoinParty = async () => {
+  await handleJoin();
+};
 
   const dummyReviews = [
     { nick: '김철수', score: 5, text: '분위기 좋고 음식도 맛있었어요! 다음에 또 참여하고 싶습니다.' },
@@ -405,25 +478,29 @@ export default function PartyDetail() {
               </button>
             )}
 
-            {/* 2. 참여자/호스트: 마감된 경우 채팅방 입장 */}
-            {!isRecruiting && isMember && (
-              <button className="btn btn-secondary btn-block" onClick={() => setActiveTab('chat')} style={{ marginBottom: 10 }}>
-                💬 채팅방 입장하기
-              </button>
+            {/* 2. 일반 사용자/참여자 액션 영역 */}
+            {!isHost && (
+              <div className="mt-4">
+                {!user ? (
+                  <Link to="/login" className="btn btn-primary btn-block">로그인 후 참여</Link>
+                ) : isMember ? (
+                  <div className="flex flex-col gap-2">
+                    <button className="btn btn-secondary btn-block" disabled>✅ 참여 중</button>
+                    {!isRecruiting && (
+                      <button className="btn btn-info btn-block" onClick={() => setActiveTab('chat')}>
+                        💬 채팅방 입장
+                      </button>
+                    )}
+                  </div>
+                ) : isRecruiting ? (
+                  <button className="btn btn-primary btn-block btn-lg" onClick={handleJoin}>
+                    🍽️ 파티 참여하기
+                  </button>
+                ) : (
+                  <button className="btn btn-muted btn-block" disabled>모집 마감</button>
+                )}
+              </div>
             )}
-
-            {/* 3. 일반 사용자/참여 대기: 참여하기 버튼 */}
-            {!isMember && isRecruiting && user && (
-              <button className="btn btn-primary btn-block btn-lg" onClick={handleJoin}>
-                🍽️ 파티 참여하기
-              </button>
-            )}
-
-            {/* 4. 이미 참여 중일 때 */}
-            {isMember && isRecruiting && (
-              <button className="btn btn-secondary btn-block" disabled>✅ 이미 참여 중</button>
-            )}
-
             {/* 5. 비로그인 시 */}
             {!user && <Link to="/login" className="btn btn-primary btn-block">로그인 후 참여</Link>}
 
@@ -471,6 +548,17 @@ export default function PartyDetail() {
                   강퇴
                 </button>
               )}
+              {user && m.user?.user_id !== user.user_id && isMember && (
+                <button 
+                  onClick={() => openReportModal(m.user.user_id)} 
+                  className="text-xs text-red-500 border border-red-500 rounded px-2"
+                  style={{ marginRight: 4, fontSize: '0.72rem', padding: '3px 8px',
+                    color: 'var(--color-danger)', border: '1px solid var(--color-danger)',
+                    borderRadius: 6, cursor: 'pointer', background: 'transparent', fontWeight: 700 }}>
+                  신고
+
+                </button>
+              )}
 
 
               {/* 일반 참여자 본인 탈퇴 버튼 */}
@@ -482,18 +570,35 @@ export default function PartyDetail() {
                     borderRadius: 6, cursor: 'pointer', background: 'transparent', fontWeight: 700 }}
                 >
                   탈퇴
+
                 </button>
               )}
 
               {/* 호스트 본인 행 — 파티 중단(취소) 버튼 */}
               {user && party.is_host && m.user?.user_id === user.user_id && party.status !== 'COMPLETED' && (
                 <button
-                  onClick={handleCancelParty}
-                  style={{ marginRight: 4, fontSize: '0.72rem', padding: '3px 8px',
-                    color: 'var(--color-danger)', border: '1px solid var(--color-danger)',
-                    borderRadius: 6, cursor: 'pointer', background: 'transparent', fontWeight: 700 }}
+                  onClick={() => {
+                    // 파티원(본인 포함)이 1명 초과일 때(즉, 다른 사람이 있을 때) 경고
+                    if (party.members.length > 1) {
+                      alert('다른 파티원이 참여 중이므로 파티를 중단할 수 없습니다. 강퇴하거나 멤버가 모두 나간 뒤 시도해주세요.');
+                      return;
+                    }
+                    handleCancelParty();
+                  }}
+                  style={{ 
+                    marginRight: 4, 
+                    fontSize: '0.72rem', 
+                    padding: '3px 8px',
+                    // 파티원이 있을 때는 회색(비활성 느낌), 없으면 빨간색(활성)
+                    color: party.members.length > 1 ? '#999' : 'var(--color-danger)', 
+                    border: `1px solid ${party.members.length > 1 ? '#ccc' : 'var(--color-danger)'}`,
+                    borderRadius: 6, 
+                    cursor: party.members.length > 1 ? 'not-allowed' : 'pointer', 
+                    background: 'transparent', 
+                    fontWeight: 700 
+                  }}
                 >
-                  파티중단
+                  {party.members.length > 1 ? '중단 불가' : '파티중단'}
                 </button>
               )}
 
@@ -531,6 +636,31 @@ export default function PartyDetail() {
           </div>
         </div>
       </div>
+    {isReportModalOpen && (
+      <div 
+        className="fixed inset-0 flex items-center justify-center z-50"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }} 
+      >
+        <div className="bg-white p-6 rounded-lg shadow-lg w-80">
+          <h3 className="font-bold mb-4">사용자 신고</h3>
+          <textarea 
+            className="form-control w-full mb-4" 
+            placeholder="신고 사유를 입력하세요"
+            value={reportReason} // 상태값 연결
+            onChange={(e) => setReportReason(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setIsReportModalOpen(false)} className="btn btn-secondary">취소</button>
+            <button 
+              onClick={() => handleReport(targetReportId, reportReason)} 
+              className="btn btn-danger"
+            >
+              신고하기
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }

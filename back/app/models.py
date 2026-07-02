@@ -2,6 +2,11 @@ from . import db
 from datetime import datetime
 import enum
 
+party_kicked_users = db.Table('party_kicked_users',
+    db.Column('party_id', db.Integer, db.ForeignKey('parties.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True)
+)
+
 class RoleEnum(enum.Enum):
     USER  = "USER"
     ADMIN = "ADMIN"
@@ -10,9 +15,11 @@ class StatusEnum(enum.Enum):
     RECRUITING = "RECRUITING"
     CLOSED     = "CLOSED"
     COMPLETED  = "COMPLETED"
+    CANCELLED = 'CANCELLED'
 
 class User(db.Model):
     __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
 
     user_id      = db.Column(db.Integer, primary_key=True)
     email        = db.Column(db.String(100), unique=True, nullable=False)
@@ -48,6 +55,7 @@ class Restaurant(db.Model):
 
 class Party(db.Model):
     __tablename__ = 'parties'
+    id = db.Column(db.Integer, primary_key=True)
 
     party_id      = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.restaurant_id'), nullable=False)
@@ -60,6 +68,9 @@ class Party(db.Model):
 
     members  = db.relationship('PartyMember',   backref='party', cascade='all, delete-orphan')
     messages = db.relationship('ChatMessage',   backref='party', cascade='all, delete-orphan')
+    kicked_users = db.relationship('User', secondary=party_kicked_users, backref='kicked_from_parties')
+    reports = db.relationship('Report', backref='party', cascade='all, delete-orphan')
+
 
 
 class PartyMember(db.Model):
@@ -104,3 +115,44 @@ class RecommendationLog(db.Model):
     input_context             = db.Column(db.JSON)
     recommended_restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.restaurant_id'), nullable=False)
     is_liked                  = db.Column(db.Boolean, default=False)
+
+class Report(db.Model):
+    __tablename__ = 'reports'
+    __table_args__ = (
+        db.UniqueConstraint('party_id', 'reporter_id', 'target_id', name='_one_report_per_user_per_party'),
+    )
+
+    report_id  = db.Column(db.Integer, primary_key=True)
+    party_id   = db.Column(db.Integer, db.ForeignKey('parties.party_id'), nullable=False)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    target_id  = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    reason     = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_processed = db.Column(db.Boolean, default=False) # 관리자 처리 여부
+
+    reporter = db.relationship('User', foreign_keys=[reporter_id])
+    target = db.relationship('User', foreign_keys=[target_id])
+
+class Inquiry(db.Model):
+    __tablename__ = 'inquiries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable=True) 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    
+    writer = db.relationship('User', backref='inquiries', foreign_keys=[user_id])
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'answer': self.answer,
+            'date': self.created_at.strftime('%Y-%m-%d'),
+            'writer': self.writer.nickname if self.writer else "알 수 없음"
+        }
+

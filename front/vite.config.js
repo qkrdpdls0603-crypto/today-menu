@@ -12,6 +12,7 @@ export default defineConfig({
       '/menu':   { target: 'http://localhost:5000', changeOrigin: true },
       '/party':  { target: 'http://localhost:5000', changeOrigin: true },
       '/mypage': { target: 'http://localhost:5000', changeOrigin: true },
+
     },
   },
   build: {

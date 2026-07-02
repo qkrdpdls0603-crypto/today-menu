@@ -337,6 +337,30 @@ export default function MyPage() {
           )}
         </div>
 
+<<<<<<< HEAD
+        {activeTab === 'liked' && (
+          liked_logs.length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {(showAllFavorites ? liked_logs : liked_logs.slice(0, FAVORITE_LIMIT)).map((log) => (
+                  <Link
+                    to={`/menu/${log.restaurant?.id ?? log.recommended_restaurant_id}`}
+                    className="card rest-card"
+                    key={log.log_id}
+                  >
+                    <RestaurantImage
+                      category={log.restaurant?.category}
+                      name={log.restaurant?.name}
+                      style={{ height: 120, width: '100%', objectFit: 'cover', borderRadius: '8px 8px 0 0' }}
+                    />
+                    <div className="card-body">
+                      <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
+                      <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>
+                      <div className="rest-addr" style={{ marginTop: 4 }}>
+                        {(log.restaurant?.address ?? '').slice(0, 20)}
+                        {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
+                      </div>
+=======
         {liked_logs.length > 0 ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -357,6 +381,7 @@ export default function MyPage() {
                     <div className="rest-addr" style={{ marginTop: 4 }}>
                       {(log.restaurant?.address ?? '').slice(0, 20)}
                       {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
+>>>>>>> main
                     </div>
                   </div>
                 </Link>

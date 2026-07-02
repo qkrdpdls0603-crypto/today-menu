@@ -312,6 +312,7 @@ export default function Home() {
         </div>
       </section>
 
+
       <section className={quickPanelsClass}>
         <div className={`${quickCardBaseClass} ${quickMapCardClass}`}>
           <div>
