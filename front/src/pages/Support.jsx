@@ -1,15 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 export default function Support() {
+  const location = useLocation();
+
   // 0. 사용자 권한 상태 (테스트용)
-  const [userRole, setUserRole] = useState("user"); 
-  
+  const [userRole, setUserRole] = useState("user");
+
   // 1. UI 조작용 전역 상태 (탭, 검색어, 모달)
-  const [activeTab, setActiveTab] = useState("all");
+  // 마이페이지 고객문의 버튼에서 state.defaultTab='inquiry' 로 진입 시 자동 선택
+  const [activeTab, setActiveTab] = useState(location.state?.defaultTab ?? "all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null); 
   const [openInquiryId, setOpenInquiryId] = useState(null); 
+
+  // location state 변경 시 탭 자동 전환
+  useEffect(() => {
+    if (location.state?.defaultTab) {
+      setActiveTab(location.state.defaultTab);
+      if (location.state.defaultTab === 'inquiry') {
+        setIsInquiryModalOpen(true);
+      }
+    }
+  }, [location.state]);
 
   // 2. 페이지네이션 상태 (현재 페이지 관리)
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,7 +43,10 @@ export default function Support() {
   ];
 
   // 4. 1:1 문의사항 로컬 목록 상태
-  const [inquiries, setInquiries] = useState([]); 
+  const [inquiries, setInquiries] = useState(() => {
+    try {
+      const saved = localStorage.getItem('today_menu_inquiries');
+      return saved ? JSON.parse(saved) : []); 
   
   // 🌟 서버에서 데이터 가져오기
   useEffect(() => {
@@ -47,6 +64,25 @@ export default function Support() {
 
     fetchInquiries();
   }, []);
+    } catch { return []); 
+  
+  // 🌟 서버에서 데이터 가져오기
+  useEffect(() => {
+    const fetchInquiries = async () => {
+      try {
+        const response = await fetch('/api/support/inquiries'); 
+        if (response.ok) {
+          const data = await response.json();
+          setInquiries(data);
+        }
+      } catch (error) {
+        console.error("문의 목록을 가져오는 중 오류 발생:", error);
+      }
+    };
+
+    fetchInquiries();
+  }, []); }
+  });
 
 
   // 6. 문의글 아코디언 핸들러
@@ -90,7 +126,9 @@ export default function Support() {
 
     if (response.ok) {
       const savedInquiry = await response.json();
-      setInquiries([savedInquiry, ...inquiries]);
+      const updated = [savedInquiry, ...inquiries];
+    setInquiries(updated);
+    try { localStorage.setItem('today_menu_inquiries', JSON.stringify(updated)); } catch {}
       setNewTitle("");
       setNewContent("");
       setIsInquiryModalOpen(false);
@@ -117,9 +155,13 @@ export default function Support() {
     });
 
     if (response.ok) {
-      setInquiries(inquiries.map(item => 
+      const updated2 = inquiries.map(item =>
         item.id === id ? { ...item, answer: adminReplyText } : item
-      ));
+      );
+    setInquiries(updated2);
+    try { localStorage.setItem('today_menu_inquiries', JSON.stringify(updated2)); } catch {}
+    // dummy to avoid duplicate
+    ((x) => x);
       setAdminReplyText("");
       alert("👑 답변 등록이 완료되었습니다.");
     } else {
