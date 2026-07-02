@@ -94,7 +94,7 @@ export default function Header() {
               <button onClick={handleLogout} className={`${headerIconLink} group mr-1 max-md:hidden`}>
                 <img src="/img/logout.png" className="h-[35px] w-[35px] object-contain" alt="logout" />
                 <span className="whitespace-nowrap text-[0.74rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">
-                로그이;ㄴ
+                로그아웃
               </span>
               </button>
             ) : (
@@ -104,7 +104,7 @@ export default function Header() {
                   className="h-[35px] w-[35px] object-contain" 
                   alt="login" />
                   <span className="whitespace-nowrap text-[0.74rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">
-                로그아웃
+                로그인
               </span>
                 </Link>
               </>
