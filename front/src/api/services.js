@@ -158,6 +158,36 @@ export async function reportPartyMember(partyId, targetId, reason) {
   return data
 }
 
+
+// ── REVIEW ───────────────────────────────────────────────────────────────────
+export async function getReviews(restId) {
+  const { data } = await api.get(`/api/menu/${restId}/reviews`)
+  return data
+}
+export async function createReview(restId, { rating, content }) {
+  const { data } = await api.post(`/api/menu/${restId}/reviews`, { rating, content })
+  return data
+}
+export async function deleteReview(restId, reviewId) {
+  const { data } = await api.delete(`/api/menu/${restId}/reviews/${reviewId}`)
+  return data
+}
+export async function getMyReviews() {
+  const { data } = await api.get('/api/mypage/reviews')
+  return data
+}
+
+// ── MANNER HISTORY ────────────────────────────────────────────────────────────
+export async function getMannerHistory() {
+  const { data } = await api.get('/api/manner/history')
+  return data
+}
+
+// ── LIKE LOG ─────────────────────────────────────────────────────────────────
+export async function createLikeLog(restaurantId) {
+  const { data } = await api.post('/api/like/create', { restaurant_id: restaurantId })
+  return data
+}
 // ── MANNER VOTE ──────────────────────────────────────────────────────────────
 /** 매너온도 투표 — 하루 2회 제한 */
 export async function voteManner(targetUserId, isPositive) {
@@ -203,4 +233,3 @@ export async function getFamilySites() {
     { id: 3, name: '카카오', url: 'https://www.kakao.com' },
   ]
 }
-
