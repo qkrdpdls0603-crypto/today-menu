@@ -42,26 +42,16 @@ export default function Header() {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-[500] h-[var(--header-h)] border-b border-[rgba(243,231,221,0.9)] bg-white/95 backdrop-blur-2xl">
-  <div className={`${pageContainer} grid h-full grid-cols-[minmax(220px,1fr)_minmax(340px,420px)_minmax(220px,1fr)] items-center gap-6 max-lg:grid-cols-[auto_minmax(240px,1fr)_auto] max-md:grid-cols-[1fr_auto]`}>
-    
-    <Link
-  to="/"
-  className="inline-flex justify-self-start items-center text-[1.72rem] font-black tracking-[-0.04em] text-[#0E0C0B] max-md:text-[1.35rem]"
-  onClick={() => setMobileOpen(false)}
->
-  
-  {/* 🌟 2. 이미지가 원래 텍스트가 있던 왼쪽 구석 라인에 정확히 안착합니다.
-      만약 보이지 않는 여백 때문에 오른쪽 글자가 너무 멀어진다면 -mr-[16px] 숫자를 키워 밀착시키세요! */}
-  <img 
-    src="/img/icon/logo.png" 
-    alt="로고" 
-    className="h-8 w-auto object-contain max-md:h-6 -mr-[12px]" 
-  />
-  
-  {/* 🌟 3. 글자는 이제 왼쪽 끝 라인에서 이미지 두께만큼 자연스럽게 우측으로 밀리며 시작됩니다. */}
-  <span className="text-black ml-5">오늘 뭐먹지?</span>
-  
-</Link>
+        <div className={`${pageContainer} grid h-full grid-cols-[minmax(220px,1fr)_minmax(340px,420px)_minmax(220px,1fr)] items-center gap-6 max-lg:grid-cols-[auto_minmax(240px,1fr)_auto] max-md:grid-cols-[1fr_auto]`}>
+          <Link
+            to="/"
+            className="inline-flex justify-self-start items-center gap-2 text-[1.72rem] font-black tracking-[-0.04em] text-[#0E0C0B] max-md:text-[1.35rem]"
+            onClick={() => setMobileOpen(false)}
+          >
+            <img src="/img/icon/logo.png" alt="오늘 뭐먹지?" style={{ height: 38, width: 38, objectFit: 'contain' }}
+              onError={(e) => { e.target.style.display='none' }} />
+            <span>오늘 뭐먹지?</span>
+          </Link>
 
           <div className="max-md:hidden">
             <form

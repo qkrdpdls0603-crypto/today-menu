@@ -1,8 +1,10 @@
 import io from 'socket.io-client'
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { getParty, joinParty, voteManner, getMannerVoteStatus, closeParty } from '../api/services'
+import { getParty, joinParty, voteManner, getMannerVoteStatus } from '../api/services'
+import api from '../api/axiosInstance.js'
 import { useAuth } from '../App'
+import RestaurantImage from '../components/RestaurantImage'
 
 const CAT_ICON = { 한식:'🍚', 일식:'🍣', 중식:'🥟', 양식:'🥩', 분식:'🍜', 치킨:'🍗', 피자:'🍕', 카페:'☕' }
 
@@ -115,6 +117,14 @@ export default function PartyDetail() {
       setTimeout(() => setVoteMsg(''), 3000)
     } catch (e) { setVoteMsg(e.response?.data?.message ?? '투표 실패'); setTimeout(() => setVoteMsg(''), 3000) }
   }
+  const handleKick = async (targetUserId) => {
+    try {
+      await api.delete(`/api/party/${partyId}/kick/${targetUserId}`)
+      alert('강퇴 처리가 완료되었습니다.')
+      const d = await getParty(partyId); setParty(d)
+    } catch (e) { alert(e?.response?.data?.message || '강퇴 실패') }
+  }
+
   const handleLeaveParty = async () => {
     if (!window.confirm('정말로 파티에서 퇴장하시겠습니까?')) return
     try { await api.delete(`/api/party/${partyId}/leave`); alert('파티에서 퇴장했습니다.'); navigate('/party') }
@@ -126,6 +136,15 @@ export default function PartyDetail() {
     try { await api.post(`/api/party/${partyId}/report`, { target_id: targetId, reason }); alert('신고 접수됐습니다.') }
     catch (e) { alert(e.response?.data?.message || '신고 실패') }
   }
+  const handleCancelParty = async () => {
+    if (!window.confirm('파티를 취소하시겠습니까? 취소 후에는 복구할 수 없습니다.')) return
+    try {
+      await api.patch(`/api/party/${partyId}/finish`)
+      alert('파티가 취소되었습니다.')
+      navigate('/party')
+    } catch (e) { alert(e.response?.data?.message || '파티 취소 실패') }
+  }
+
   const handleStatusChange = async (newStatus) => {
     if (!window.confirm(newStatus === 'CLOSED' ? '모집을 마감하시겠습니까?' : '모집을 재개하시겠습니까?')) return
     try { await api.patch(`/api/party/${partyId}/status`, { status: newStatus }); const d = await getParty(partyId); setParty(d) }
@@ -146,16 +165,15 @@ export default function PartyDetail() {
   }
 
   const handleCloseParty = async () => {
-  if (!window.confirm("정말로 파티 모집을 마감하시겠습니까?")) return;
-  try {
-    const updatedParty = await closeParty(partyId);
-    setParty(updatedParty); // 상태 업데이트로 즉시 UI 반영
-    alert("파티가 마감되었습니다.");
-  } catch (e) {
-    alert(e.response?.data?.message ?? "마감 처리 중 오류가 발생했습니다.");
+    if (!window.confirm('정말로 파티 모집을 마감하시겠습니까?')) return
+    try {
+      await api.patch(`/api/party/${partyId}/status`, { status: 'CLOSED' })
+      const d = await getParty(partyId); setParty(d)
+      alert('파티가 마감되었습니다.')
+    } catch (e) {
+      alert(e.response?.data?.message || '마감 처리 중 오류가 발생했습니다.')
+    }
   }
-};
-
 
 
   const dummyReviews = [
@@ -177,11 +195,12 @@ export default function PartyDetail() {
       <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6 items-start">
         {/* ── 메인 컬럼 ── */}
         <div>
-          <div className="party-detail-hero">
-            <div className="text-center">
-              <div className="text-6xl">{CAT_ICON[party.restaurant?.category] ?? '🍴'}</div>
-              <div className="font-bold text-gray-500 mt-2">배너</div>
-            </div>
+          <div className="party-detail-hero" style={{ padding: 0, overflow: 'hidden' }}>
+            <RestaurantImage
+              category={party.restaurant?.category}
+              name={party.restaurant?.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
           </div>
 
           <div className="mb-4">
@@ -340,9 +359,46 @@ export default function PartyDetail() {
               </span>
             </div>
 
+            {/* 호스트 전용: 파티 종료 */}
+            {party.is_host && party.status === 'CLOSED' && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm('파티를 종료하시겠습니까?')) return
+                  try {
+                    await api.patch(`/api/party/${partyId}/finish`)
+                    alert('파티가 종료되었습니다.')
+                    navigate('/party')
+                  } catch (e) { alert(e.response?.data?.message || '종료 실패') }
+                }}
+                style={{
+                  width: '100%', marginBottom: 8, padding: '10px 0',
+                  background: 'var(--color-secondary)', color: '#fff',
+                  border: 'none', borderRadius: 8,
+                  fontSize: '.88rem', fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                🏁 파티 종료하기
+              </button>
+            )}
+
+            {/* 호스트 전용: 파티 취소 */}
+            {party.is_host && party.status !== 'COMPLETED' && (
+              <button
+                onClick={handleCancelParty}
+                style={{
+                  width: '100%', marginBottom: 8, padding: '10px 0',
+                  background: 'transparent', color: 'var(--color-danger)',
+                  border: '1.5px solid var(--color-danger)', borderRadius: 8,
+                  fontSize: '.88rem', fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                ❌ 파티 취소하기
+              </button>
+            )}
+
             {/* 1. 호스트 전용: 모집 중일 때 마감 버튼 */}
             {party.is_host && isRecruiting && (
-              <button className="btn btn-warning btn-block" onClick={handleCloseParty} style={{ marginBottom: 10 }}>
+              <button className="btn btn-warning btn-block" onClick={handleStatusChange.bind(null, 'CLOSED')} style={{ marginBottom: 10 }}>
                 🚫 모집 마감하기
               </button>
             )}
@@ -397,17 +453,45 @@ export default function PartyDetail() {
                   <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{m.is_host ? '호스트' : '참여자'}</div>
                 </div>
                 {m.is_host && <span className="badge badge-primary" style={{marginRight:4}}>호스트</span>}
-              {party.is_host && !m.is_host && (
-                <button 
+
+              {/* 호스트가 타인 강퇴 */}
+              {user && party.is_host && !m.is_host && (
+                <button
                   onClick={() => {
                     if (window.confirm(`${m.user?.nickname}님을 정말로 강퇴하시겠습니까?`)) {
-                      // 강퇴 API 함수 (기존에 구현하신 함수명으로 사용하세요)
-                      // handleKick(m.user.user_id);
+                      handleKick(m.user.user_id)
                     }
                   }}
-                  style={{ marginRight: 8, fontSize: '0.7rem', padding: '2px 6px', color: '#e53e3e', border: '1px solid #e53e3e', borderRadius: 4, cursor: 'pointer' }}
+                  style={{ marginRight: 4, fontSize: '0.72rem', padding: '3px 8px',
+                    color: 'var(--color-danger)', border: '1px solid var(--color-danger)',
+                    borderRadius: 6, cursor: 'pointer', background: 'transparent', fontWeight: 700 }}
                 >
                   강퇴
+                </button>
+              )}
+
+
+              {/* 일반 참여자 본인 탈퇴 버튼 */}
+              {user && !party.is_host && m.user?.user_id === user.user_id && (
+                <button
+                  onClick={handleLeaveParty}
+                  style={{ marginRight: 4, fontSize: '0.72rem', padding: '3px 8px',
+                    color: 'var(--text-muted)', border: '1px solid var(--border-color)',
+                    borderRadius: 6, cursor: 'pointer', background: 'transparent', fontWeight: 700 }}
+                >
+                  탈퇴
+                </button>
+              )}
+
+              {/* 호스트 본인 행 — 파티 중단(취소) 버튼 */}
+              {user && party.is_host && m.user?.user_id === user.user_id && party.status !== 'COMPLETED' && (
+                <button
+                  onClick={handleCancelParty}
+                  style={{ marginRight: 4, fontSize: '0.72rem', padding: '3px 8px',
+                    color: 'var(--color-danger)', border: '1px solid var(--color-danger)',
+                    borderRadius: 6, cursor: 'pointer', background: 'transparent', fontWeight: 700 }}
+                >
+                  파티중단
                 </button>
               )}
               {user && m.user?.user_id !== user.user_id && (

@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import * as apiServices from '../api/services'
 
-const footerClass = 'mt-7 border-t border-[var(--border-color)] bg-[linear-gradient(180deg,#FFFDF7,#FFF8EF)] pb-[26px] pt-[42px]'
-const footerGridClass = 'container grid grid-cols-[1.6fr_1fr_1fr_auto] gap-12 items-start max-lg:grid-cols-2 max-md:grid-cols-1'
-const logoTextClass = 'mb-[18px] block text-[1.18rem] font-black text-[var(--text-primary)]'
-const footerTextClass = 'text-[0.9rem] font-bold text-[var(--text-secondary)]'
+const footerClass        = 'mt-7 border-t border-[var(--border-color)] bg-[linear-gradient(180deg,#FFFDF7,#FFF8EF)] pb-[26px] pt-[42px]'
+const logoTextClass      = 'mb-[18px] block text-[1.18rem] font-black text-[var(--text-primary)]'
+const footerTextClass    = 'text-[0.9rem] font-bold text-[var(--text-secondary)]'
 const footerHeadingClass = 'mb-[14px] font-black text-[var(--text-primary)]'
 const footerLinkClass    = 'mb-2 block text-[0.9rem] font-bold text-[var(--text-secondary)] hover:text-[var(--color-primary)]'
 const socialRowClass     = 'mt-6 flex gap-4 text-[1.35rem] font-black text-[#8C8C8C]'
@@ -32,9 +31,16 @@ export default function Footer() {
 
   return (
     <footer className={footerClass}>
-      <div className={footerGridClass}>
 
-        {/* 브랜드 */}
+      {/* ── 메인 그리드: 브랜드 / 서비스(3+2) / 앱다운로드(오른쪽 끝) ── */}
+      <div className="container" style={{
+        display: 'grid',
+        gridTemplateColumns: '1.6fr 1fr 1fr auto',
+        gap: 48,
+        alignItems: 'start',
+      }}>
+
+        {/* 1. 브랜드 */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <img src="/img/icon/logo.png" alt="오늘 뭐먹지?" style={{ height: 40, width: 40, objectFit: 'contain' }}
@@ -42,11 +48,27 @@ export default function Footer() {
             <strong style={{ fontSize: '1.18rem', fontWeight: 900, color: 'var(--text-primary)' }}>오늘 뭐먹지?</strong>
           </div>
           <p className={footerTextClass}>AI가 추천하는<br />오늘의 베스트 맛집</p>
-          
+          <div className={socialRowClass}>
+            <span>◎</span><span>f</span><span>t</span>
+          </div>
 
           {/* FAMILY SITE 아코디언 */}
           <div style={{ marginTop: 24, position: 'relative', display: 'inline-block' }}>
-            
+            <button
+              type="button"
+              onClick={() => setIsFamilyOpen(!isFamilyOpen)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 12px', borderRadius: 6,
+                border: '1px solid var(--border-color)',
+                background: 'white', cursor: 'pointer',
+                fontSize: '.82rem', fontWeight: 600,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <span>FAMILY SITE</span>
+              <span style={{ fontSize: 10 }}>{isFamilyOpen ? '∨' : '∧'}</span>
+            </button>
             {isFamilyOpen && (
               <div style={{
                 position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
@@ -71,7 +93,6 @@ export default function Footer() {
           </div>
         </div>
 
-
         {/* 2. 서비스 왼쪽 — 소개 / 이용안내 / 개인정보처리방침 */}
         <div style={{ margin: '0 auto' }}>
           <h4 className={footerHeadingClass}>서비스</h4>
@@ -79,11 +100,11 @@ export default function Footer() {
             소개
           </Link>
           {/* 이용안내 → /terms 이동, defaultTab='terms' → 이용약관만 표시 */}
-          <Link className={footerLinkClass} to="/terms2">
+          <Link className={footerLinkClass} to="/terms" state={{ defaultTab: 'terms' }}>
             이용안내
           </Link>
           {/* 개인정보처리방침 → /terms 이동, defaultTab='privacy' → 개인정보만 표시 */}
-          <Link className={footerLinkClass} to="/terms">
+          <Link className={footerLinkClass} to="/terms" state={{ defaultTab: 'privacy' }}>
             개인정보처리방침
           </Link>
         </div>

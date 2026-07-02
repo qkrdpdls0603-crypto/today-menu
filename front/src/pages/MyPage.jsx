@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getMyPage, toggleLike, saveFavoriteLocations, searchKakao } from '../api/services'
+import RestaurantImage from '../components/RestaurantImage'
 import { useAuth } from '../App'
 import { processTags } from '../utils'
 
@@ -360,7 +361,11 @@ export default function MyPage() {
                     className="card rest-card"
                     key={log.log_id}
                   >
-                    <div className="card-img" style={{ fontSize: '2rem' }}>🍴</div>
+                    <RestaurantImage
+                      category={log.restaurant?.category}
+                      name={log.restaurant?.name}
+                      style={{ height: 120, width: '100%', objectFit: 'cover', borderRadius: '8px 8px 0 0' }}
+                    />
                     <div className="card-body">
                       <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
                       <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>

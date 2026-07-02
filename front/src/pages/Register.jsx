@@ -2,18 +2,18 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../api/services'
 
-const PREF_FOODS = ['한식', '일식', '중식', '양식', '분식', '치킨', '피자', '채식', '해산물', '매운맛']
-const REQ_TERMS = ['만 14세 이상입니다.', '쇼핑 이용약관 동의', '전자금융거래 이용약관 동의', '개인정보 제3자 제공 동의']
-const OPT_TERMS = ['마케팅 목적 개인정보 수집 및 이용 동의', '광고성 정보 수신 동의']
-const SUB_TERMS = ['이메일 수신 동의', 'SMS, SNS 수신 동의', '앱 푸시 수신 동의']
+const PREF_FOODS = ['한식','일식','중식','양식','분식','치킨','피자','채식','해산물','매운맛']
+const REQ_TERMS  = ['만 14세 이상입니다.','쇼핑 이용약관 동의','전자금융거래 이용약관 동의','개인정보 제3자 제공 동의']
+const OPT_TERMS  = ['마케팅 목적 개인정보 수집 및 이용 동의','광고성 정보 수신 동의']
+const SUB_TERMS  = ['이메일 수신 동의','SMS, SNS 수신 동의','앱 푸시 수신 동의']
 
 export default function Register() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ email: '', password: '', password2: '', nickname: '', allergies: '', preferences: [] })
-  const [terms, setTerms] = useState({})
-  const [agreeAll, setAgreeAll] = useState(false)
+  const [form,    setForm]    = useState({ email: '', password: '', password2: '', nickname: '', allergies: '', preferences: [] })
+  const [terms,   setTerms]   = useState({})
+  const [agreeAll,setAgreeAll]= useState(false)
   const [pwError, setPwError] = useState('')
-  const [error, setError] = useState('')
+  const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
 
   const togglePref = (food) => setForm((f) => ({
@@ -23,7 +23,7 @@ export default function Register() {
   const handleAgreeAll = (checked) => {
     setAgreeAll(checked)
     const all = {}
-      ;[...REQ_TERMS, ...OPT_TERMS, ...SUB_TERMS].forEach((t) => { all[t] = checked })
+    ;[...REQ_TERMS, ...OPT_TERMS, ...SUB_TERMS].forEach((t) => { all[t] = checked })
     setTerms(all)
   }
 
@@ -41,22 +41,17 @@ export default function Register() {
   }
 
   return (
-    <div className="flex items-start justify-center gap-[40px] py-[24px] flex-wrap">
-      <div className="bg-white rounded-[24px] p-[40px] w-full max-w-[520px] shadow-lg">
-        <div className="text-center mb-[28px]">
-  
-  <div className="relative inline-flex items-center justify-center text-[1.72rem] font-black tracking-[-0.04em] text-[#0E0C0B] min-h-[40px]">
-    <img 
-      src="/img/icon/logo.png" 
-      alt="오늘 뭐먹지 로고" 
-      className="absolute right-full mr-2 h-8 w-auto object-contain" 
-    />
-    <span>오늘 뭐먹지?</span>
-  </div>
-  
-  <p className="text-[0.9rem] text-gray-400 mt-2">회원정보를 입력해주세요</p>
-</div>
 
+    <div className="register-wrap">
+      <div className="register-card">
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+            <img src="/img/icon/logo.png" alt="로고" style={{ height: 44, width: 44, objectFit: 'contain' }}
+              onError={(e) => { e.target.style.display='none' }} />
+            <span style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.03em' }}>오늘 뭐먹지?</span>
+          </div>
+          <p style={{ fontSize: '.88rem', color: 'var(--text-muted)' }}>회원정보를 입력해주세요</p>
+        </div>
 
         <form id="registerForm" onSubmit={handleSubmit}>
           {/* 이메일 */}
@@ -139,22 +134,27 @@ export default function Register() {
           </div>
 
           {error && <div className="alert alert-danger">{error}</div>}
-          <hr className="border-0 border-t border-[var(--border-color)] my-[20px]" />
 
-          <div className="text-center mt-[16px]">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full  py-3 px-6 text-lg font-semibold rounded-[12px] bg-[#F46C6F] text-white hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
 
+          <div style={{ marginTop: 16 }}>
+            <button type="submit" disabled={loading}
+              style={{
+                width: '100%', padding: '16px 0',
+                background: loading ? 'var(--color-primary-dark)' : 'var(--color-primary)',
+                color: '#fff', border: 'none',
+                borderRadius: 999, fontSize: '1.05rem', fontWeight: 900,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 16px rgba(244,108,111,0.35)',
+                transition: 'opacity .15s',
+                opacity: loading ? .7 : 1,
+              }}>
               {loading ? '가입 중...' : '동의하기'}
             </button>
           </div>
         </form>
 
-        <div className="text-center mt-[20px] text-[0.88rem] text-gray-400">
-          이미 계정이 있으신가요? <Link to="/login" className="text-[var(--color-primary)] font-semibold hover:underline">로그인</Link>
+        <div className="auth-footer">
+          이미 계정이 있으신가요? <Link to="/login">로그인</Link>
         </div>
       </div>
     </div>
