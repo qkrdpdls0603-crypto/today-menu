@@ -102,6 +102,7 @@ def serialize_party(p, viewer_id=None):
         'member_count': len(p.members),
         'status':       p.status.value,
         'is_member':    any(m.user_id == viewer_id for m in p.members) if viewer_id else False,
+        'is_host':      p.host_id == viewer_id if viewer_id else False,
         'created_at':   p.created_at.isoformat() if p.created_at else None,
         # PartyDetail 참여자 목록에서 사용
         'members': [
@@ -715,15 +716,22 @@ def _build_user_context(user_id):
     wishlist = ', '.join(liked_rests) or '없음'
 
 
-    saved_locs = ', '.join([loc.get('name', '') for loc in user_prefs.get('saved_locations', [])]) or '없음'
-
+    saved_locs = ', '.join([loc.get('name', '') for loc in (user.saved_locations or [])]) or '없음'
+    saved_locs_detail = '; '.join([
+        f"{loc.get('name','')}({loc.get('address','')})"
+        for loc in (user.saved_locations or [])
+    ]) or '없음'
+    address = user.address or '없음'
 
     return user, {
-        'allergies':  allergies,
-        'likes':      likes,
-        'dislikes':   dislikes,
-        'wishlist':   wishlist,
-        'saved_locs': saved_locs,
+        'allergies':       allergies,
+        'likes':           likes,
+        'dislikes':        dislikes,
+        'wishlist':        wishlist,
+        'saved_locs':      saved_locs,
+        'saved_locs_detail': saved_locs_detail,
+        'address':         address,
+        'manner_score':    user.manner_score,
     }
 
 
@@ -786,26 +794,27 @@ def chatbot():
             else f"- 전체 등록 식당: {all_rests_str}"
         )
         system_prompt = f"""당신은 '오늘의 메뉴' 앱의 AI 메뉴 추천 챗봇입니다.
-아래 사용자 정보를 기반으로 메뉴 또는 식당을 추천해주세요.
+아래 사용자 DB 정보를 기반으로 메뉴 또는 식당을 추천해주세요.
 
 [사용자 DB 정보]
 - 닉네임: {user.nickname}
+- 주소지: {ctx['address']}
+- 저장 장소: {ctx['saved_locs_detail']}
 - 좋아하는 음식: {ctx['likes']}
 - 싫어하는 음식(기피): {ctx['dislikes']}
 - 알러지/제외 재료: {ctx['allergies']}
 - 찜한 식당(즐겨찾기): {ctx['wishlist']}
-- 등록된 장소: {ctx['saved_locs']}
 {location_section}
 
 [추천 규칙]
 1. 알러지 재료가 포함된 음식은 절대 추천하지 마세요.
-2. 기피 음식(싫어하는 음식)도 추천에서 제외하세요.
-3. 찜한 식당과 좋아하는 음식을 우선 고려하세요.
+2. 기피 음식도 추천에서 제외하세요.
+3. 찜한 식당과 좋아하는 음식을 최우선으로 고려하세요.
 4. 위치 기반 식당 목록이 있으면 해당 식당 위주로 추천하세요.
-5. 위치 정보가 없으면 등록된 장소 기준으로 추천하고, 처음 대화 시 등록된 장소(집/직장 등)를 먼저 물어보세요.
-6. 식당명·카테고리·거리 정보를 포함해 구체적으로 추천하세요.
+5. 위치 정보가 없으면 저장 장소나 주소지 기준으로 추천하세요.
+6. 식당명을 언급할 때 반드시 DB에 있는 정확한 식당명을 사용하세요 (링크 연결에 필요).
 7. 짧고 친근한 한국어로 답변하세요 (3~5문장 이내).
-8. 여러 선택지를 줄 때는 번호 목록으로 제시하세요."""
+8. 여러 선택지는 번호 목록으로 제시하세요."""
 
     else:
         # ── Q&A용 DB 데이터 조회 ──────────────────────────────────────────────
@@ -905,10 +914,27 @@ def chatbot():
 {TERMS_SUMMARY}
 {PRIVACY_SUMMARY}
 
+[공지사항]
+- 서비스 정식 오픈 (2026.06): AI 메뉴 추천, 밥친구 파티 매칭, 게임창 모두 오픈
+- 파티 매칭 기능 업데이트 (2026.06): 실시간 채팅, 매너온도 투표 추가
+- AI 챗봇 고도화 (2026.07): 찜목록 기반 개인화 추천, 위치 기반 식당 연결 기능 추가
+- 정기 점검: 매주 화요일 새벽 2시~4시 (서비스 일시 중단)
+
+[고객센터 FAQ]
+Q. AI 챗봇이 위치와 다른 맛집을 추천해요.
+A. 브라우저 위치 정보 제공에 동의하거나 마이페이지에서 저장 장소를 등록해주세요.
+Q. 밥친구 파티 참여는 어떻게 하나요?
+A. 밥친구 메뉴 → 모집 중인 파티 선택 → 파티 참여하기 버튼을 누르세요.
+Q. 매너온도는 어떻게 올리나요?
+A. 파티 참여 시 +0.5도, 파티 상세 페이지에서 다른 회원에게 👍 투표 시 상대방 +1도 상승합니다.
+Q. 회원 탈퇴는 어디서 하나요?
+A. 마이페이지 최하단 '회원 탈퇴하기' 버튼을 누르세요.
+
 [답변 규칙]
-- 이용약관·개인정보처리방침 관련 질문은 위 내용을 바탕으로 정확히 답변하세요.
-- 앱 사용법 질문은 아래 가이드를 참고하세요.
-- 그 외 서비스와 무관한 질문(날씨, 정치, 연예 등)은 정중히 거절하세요.
+- 이용약관·개인정보처리방침 관련 질문 → 위 내용을 바탕으로 정확히 답변하세요.
+- 공지사항 관련 질문 → 위 공지사항 내용을 기반으로 답변하세요.
+- 고객센터/서비스 사용법 질문 → 위 FAQ와 앱 가이드를 참고해 답변하세요.
+- 서비스와 전혀 무관한 질문(날씨, 정치, 연예, 다른 앱 등) → "저는 오늘의 메뉴 앱 관련 질문만 답변드릴 수 있어요 😊 앱 이용이나 약관 관련 궁금한 점을 물어봐 주세요!"라고 정중히 안내하세요.
 
 [현재 사용자 DB 정보]
 - 닉네임: {user.nickname}
@@ -988,18 +1014,20 @@ def chatbot():
 
         # 💡 [코드 고도화] 추천 로그 인메모리 루프 누수 해결을 위한 텍스트 포함 쿼리 적용
         if mode == 'recommend':
-            matched_restaurant = Restaurant.query.filter(
-                db.literal(reply).like(db.func.concat('%', Restaurant.name, '%'))
-            ).first()
-
-            if matched_restaurant:
-                db.session.add(RecommendationLog(
-                    user_id=user_id,
-                    input_context={'message': message, 'mode': mode},
-                    recommended_restaurant_id=matched_restaurant.restaurant_id,
-                    is_liked=False,
-                ))
-                db.session.commit()
+            # Python 레벨에서 식당명 매칭 (SQLite 호환)
+            all_rests_log = Restaurant.query.with_entities(
+                Restaurant.restaurant_id, Restaurant.name
+            ).all()
+            for r_id, r_name in all_rests_log:
+                if r_name and r_name in reply:
+                    db.session.add(RecommendationLog(
+                        user_id=user_id,
+                        input_context={'message': message, 'mode': mode},
+                        recommended_restaurant_id=r_id,
+                        is_liked=False,
+                    ))
+                    db.session.commit()
+                    break
 
         # ── 응답에서 식당명 추출 → 상세 정보 첨부 ──────────────────────
         matched_restaurants = []
@@ -1326,4 +1354,3 @@ def manner_vote_status():
         'remaining': max(0, 2 - used),
         'votes':     [{'target_id': v.target_id, 'is_positive': v.is_positive} for v in votes],
     }), 200
-

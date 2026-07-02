@@ -5,6 +5,7 @@ import { privacyContent } from "../data/privacyContent";
 
 export default function Terms() {
   const location = useLocation();
+<<<<<<< HEAD
   
   const initialTab = location.state?.defaultTab || "terms";
   const [tab, setTab] = useState(initialTab);
@@ -23,6 +24,28 @@ export default function Terms() {
   }, [tab]);
 
   const data = tab === "terms" ? termsContent : privacyContent;
+=======
+
+  // Footer에서 state.defaultTab 으로 진입 → 해당 탭만 표시
+  // /terms 직접 접근 → 기본 'terms' (탭 선택 가능)
+  const fromFooter = !!location.state?.defaultTab
+  const initialTab = location.state?.defaultTab || "terms"
+  const [tab, setTab] = useState(initialTab)
+
+  useEffect(() => {
+    if (location.state?.defaultTab) {
+      setTab(location.state.defaultTab)
+    }
+  }, [location])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [tab])
+
+  const data     = tab === "terms" ? termsContent : privacyContent
+  const subTitle = tab === "terms" ? "today-menu 서비스 이용약관" : "개인정보 처리방침"
+  const pageTitle = tab === "terms" ? "이용약관" : "개인정보처리방침"
+>>>>>>> main
 
   return (
     // 전체 배경 흰색, 글자 검은색 모노톤 유지
@@ -31,64 +54,41 @@ export default function Terms() {
       {/* 1. 최상단 타이틀: */}
       <div className="w-full py-20 text-center">
         <h1 className="text-4xl font-black tracking-tight text-black">
-          약관 안내
+          {fromFooter ? pageTitle : '약관 안내'}
         </h1>
       </div>
 
-      {/* 2. 탭 내비게이션 영역 */}
-      <div className="w-full border-b border-gray-200 sticky top-0 bg-white z-10 ">
-        {/* py-6을 주어 기준선 안의 글자(이용약관) 자체도 선 위아래로 여백을 가집니다 */}
-        <div className="w-full flex justify-center gap-20 py-6">
-          
-          {/* 이용약관 탭 */}
-          <button
-            onClick={() => setTab("terms")}
-            className={`text-lg font-bold transition-all relative pb-2
-              ${
-                tab === "terms"
-                  ? "text-black opacity-100"
-                  : "text-gray-400 opacity-50 hover:opacity-80"
-              }
-            `}
-          >
-            이용약관
-            {/* 활성화 시 아래에 들어오는 검은색 기준선 */}
-            {tab === "terms" && (
-              <div className="absolute bottom-0 inset-x-0 h-[2px] bg-black" />
-            )}
-          </button>
-
-          {/* 개인정보처리방침 탭 */}
-          <button
-            onClick={() => setTab("privacy")}
-            className={`text-lg font-bold transition-all relative pb-2
-              ${
-                tab === "privacy"
-                  ? "text-black opacity-100"
-                  : "text-gray-450 opacity-50 hover:opacity-80"
-              }
-            `}
-          >
-            개인정보처리방침
-            {tab === "privacy" && (
-              <div className="absolute bottom-0 inset-x-0 h-[2px] bg-black" />
-            )}
-          </button>
-
+      {/* 탭 — Footer에서 직접 진입한 경우 숨김 */}
+      {!fromFooter && (
+        <div className="w-full border-b border-gray-200 sticky top-0 bg-white z-10">
+          <div className="w-full flex justify-center gap-20 py-6">
+            <button
+              onClick={() => setTab("terms")}
+              className={`text-lg font-bold transition-all relative pb-2 ${
+                tab === "terms" ? "text-black opacity-100" : "text-gray-400 opacity-50 hover:opacity-80"
+              }`}
+            >
+              이용약관
+              {tab === "terms" && <div className="absolute bottom-0 inset-x-0 h-[2px] bg-black" />}
+            </button>
+            <button
+              onClick={() => setTab("privacy")}
+              className={`text-lg font-bold transition-all relative pb-2 ${
+                tab === "privacy" ? "text-black opacity-100" : "text-gray-400 opacity-50 hover:opacity-80"
+              }`}
+            >
+              개인정보처리방침
+              {tab === "privacy" && <div className="absolute bottom-0 inset-x-0 h-[2px] bg-black" />}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 3. 본문 영역: mx-auto와 max-w-4xl 조합으로 전체 화면 정중앙에 완벽하게 안착 */}
+      {/* 본문 */}
       <main className="max-w-4xl mx-auto px-8 mt-32 text-center">
-        
-        {/* 본문 내부 서브 타이틀 */}
         <div className="text-center mb-28">
-          <h2 className="text-2xl font-black text-black tracking-tight">
-            {tab === "terms" ? "today-menu 서비스 이용약관" : "개인정보 처리방침"}
-          </h2>
+          <h2 className="text-2xl font-black text-black tracking-tight">{subTitle}</h2>
         </div>
-
-        {/* 4. 약관 텍스트 내용: 정중앙 정렬 기둥 */}
         <div className="w-full space-y-24 text-center">
           {data.map((item, index) => (
             <section key={index} className="w-full text-center">
@@ -106,9 +106,8 @@ export default function Terms() {
             </section>
           ))}
         </div>
-
       </main>
 
     </div>
-  );
+  )
 }
