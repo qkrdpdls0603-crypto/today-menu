@@ -345,14 +345,14 @@ export default function Home() {
       </section>
 
       {user && (
-        <section className="nearby-section">
+        <section className="nearby-section mb-[45px] mt-[11px]">
           <div className="section-title">
             <span>📍 내 주변 추천</span>
             <div className="nearby-actions">
-              <button className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5" onClick={() => setShowSearch((s) => !s)}>
+              <button className="inline-flex min-h-[44px] items-center justify-center mt-[24px] mr-[15px] gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5" onClick={() => setShowSearch((s) => !s)}>
                 {showSearch ? '패널 닫기' : '식당 검색/등록'}
               </button>
-              <button className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-black)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5" onClick={findNearby}>
+              <button className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] mb-[10px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-black)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5" onClick={findNearby}>
                 {locStatus === 'loading' ? '확인 중...' : '위치 불러오기'}
               </button>
             </div>

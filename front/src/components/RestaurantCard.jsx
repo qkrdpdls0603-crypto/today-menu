@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import RestaurantImage from './RestaurantImage'
 
 const cardClass =
@@ -33,6 +33,7 @@ export default function RestaurantCard({
   className = '',
   onClick,
 }) {
+  const navigate = useNavigate()
   const item = restaurant ?? r
 
   if (!item) return null
@@ -90,9 +91,11 @@ export default function RestaurantCard({
 
   if (to) {
     return (
-      <Link to={to} className={mergedClassName} onClick={onClick}>
+      <div className={mergedClassName} onClick={()=>{navigate(to)}}
+      // onClick={onClick}
+      >
         {content}
-      </Link>
+      </div>
     )
   }
 
