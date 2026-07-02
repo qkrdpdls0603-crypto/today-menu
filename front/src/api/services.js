@@ -158,39 +158,6 @@ export async function reportPartyMember(partyId, targetId, reason) {
   return data
 }
 
-
-// ── REVIEW ────────────────────────────────────────────────────────────────────
-/** 식당 리뷰 목록 조회 */
-export async function getReviews(restId) {
-  const { data } = await api.get(`/api/menu/${restId}/reviews`)
-  return data
-}
-
-/** 리뷰 작성/수정 */
-export async function createReview(restId, { rating, content }) {
-  const { data } = await api.post(`/api/menu/${restId}/reviews`, { rating, content })
-  return data
-}
-
-/** 내 리뷰 삭제 */
-export async function deleteReview(restId, reviewId) {
-  const { data } = await api.delete(`/api/menu/${restId}/reviews/${reviewId}`)
-  return data
-}
-
-/** 내가 쓴 리뷰 목록 */
-export async function getMyReviews() {
-  const { data } = await api.get('/api/mypage/reviews')
-  return data
-}
-
-// ── MANNER HISTORY ────────────────────────────────────────────────────────────
-/** 매너온도 상세 내역 */
-export async function getMannerHistory() {
-  const { data } = await api.get('/api/manner/history')
-  return data
-}
-
 // ── MANNER VOTE ──────────────────────────────────────────────────────────────
 /** 매너온도 투표 — 하루 2회 제한 */
 export async function voteManner(targetUserId, isPositive) {
@@ -205,6 +172,12 @@ export async function getMannerVoteStatus() {
 }
 
 // ── LIKE ──────────────────────────────────────────────────────────────────────
+// 식당 찜하기 (추천로그 없을 때 새로 생성 후 찜)
+export async function createLikeLog(restaurantId) {
+  const { data } = await api.post('/api/like/create', { restaurant_id: restaurantId })
+  return data  // { log_id, liked: true }
+}
+
 export async function toggleLike(logId) {
   const { data } = await api.post(`/api/like/${logId}`)
   return data
@@ -230,3 +203,4 @@ export async function getFamilySites() {
     { id: 3, name: '카카오', url: 'https://www.kakao.com' },
   ]
 }
+
