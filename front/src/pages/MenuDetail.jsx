@@ -142,7 +142,8 @@ export default function MenuDetail() {
           </div>
         </div>
       </div>
-    </>
+
+      {/* 🔥 수정된 부분: Fragment 안으로 이동 */}
       {showReview && (
         <ReviewModal
           restId={rest?.restaurant_id ?? rest?.id}
@@ -150,6 +151,7 @@ export default function MenuDetail() {
           onClose={() => setShowReview(false)}
         />
       )}
+    </>
   )
 }
 
