@@ -117,6 +117,7 @@ export default function PartyDetail() {
       setTimeout(() => setVoteMsg(''), 3000)
     } catch (e) { setVoteMsg(e.response?.data?.message ?? '투표 실패'); setTimeout(() => setVoteMsg(''), 3000) }
   }
+
   const handleKick = async (targetUserId) => {
     try {
       await api.delete(`/api/party/${partyId}/kick/${targetUserId}`)
@@ -150,6 +151,7 @@ export default function PartyDetail() {
     try { await api.patch(`/api/party/${partyId}/status`, { status: newStatus }); const d = await getParty(partyId); setParty(d) }
     catch (e) { alert(e.response?.data?.message || '상태 변경 실패') }
   }
+
   const handleJoin = async () => {
     try {
       await joinParty(partyId);
@@ -494,6 +496,7 @@ export default function PartyDetail() {
                   파티중단
                 </button>
               )}
+
               {user && m.user?.user_id !== user.user_id && (
                 <div style={{display:'flex',gap:3,flexShrink:0}}>
                   <button onClick={() => handleVote(m.user.user_id, true)}
