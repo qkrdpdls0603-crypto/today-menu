@@ -12,11 +12,11 @@ from flask_jwt_extended import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from .models import Report, db, Inquiry
 from app import db
 from app.models import (
     User, Restaurant, Party, PartyMember,
-    ChatMessage, RecommendationLog, MannerVote, StatusEnum, RoleEnum
+    ChatMessage, RecommendationLog, MannerVote, StatusEnum, RoleEnum,
+    Report, Inquiry, Review
 )
 
 # ── 블루프린트 ────────────────────────────────────────────────────────────────
@@ -104,6 +104,7 @@ def serialize_party(p, viewer_id=None):
         'member_count': len(p.members),
         'status':       p.status.value,
         'is_member':    any(m.user_id == viewer_id for m in p.members) if viewer_id else False,
+        'is_host':      p.host_id == viewer_id if viewer_id else False,
         'is_host':      p.host_id == viewer_id if viewer_id else False,
         'created_at':   p.created_at.isoformat() if p.created_at else None,
         # PartyDetail 참여자 목록에서 사용
