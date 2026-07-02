@@ -55,12 +55,17 @@ export default function MenuDetail() {
                 <span style={{ fontWeight: 700 }}>{(rest.avg_rating ?? 0).toFixed(1)}</span>
                 <span style={{ color: 'var(--text-muted)', fontSize: '.88rem' }}>
                   리뷰 {Math.floor((rest.avg_rating ?? 0) * 20)}개
-                <button
-                  onClick={() => setShowReview(true)}
-                  style={{ marginLeft: 8, padding: '2px 10px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: '.78rem', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  리뷰 보기/쓰기
-                </button>
+                  <button
+                    onClick={() => setShowReview(true)}
+                    style={{
+                      marginLeft: 10, padding: '3px 12px',
+                      background: 'var(--color-primary)', color: '#fff',
+                      border: 'none', borderRadius: 6,
+                      fontSize: '.78rem', fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    ✏️ 리뷰 쓰기
+                  </button>
                 </span>
               </div>
 
@@ -138,10 +143,10 @@ export default function MenuDetail() {
         </div>
       </div>
     </>
-      {showReview && rest && (
+      {showReview && (
         <ReviewModal
-          restId={rest.id}
-          restName={rest.name}
+          restId={rest?.restaurant_id ?? rest?.id}
+          restName={rest?.name}
           onClose={() => setShowReview(false)}
         />
       )}
