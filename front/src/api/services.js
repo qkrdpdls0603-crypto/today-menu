@@ -201,6 +201,12 @@ export async function getMannerVoteStatus() {
   return data
 }
 
+// ── LIKE ──────────────────────────────────────────────────────────────────────
+// 식당 찜하기 (추천로그 없을 때 새로 생성 후 찜)
+ = await api.post('/api/like/create', { restaurant_id: restaurantId })
+  return data  // { log_id, liked: true }
+}
+
 export async function toggleLike(logId) {
   const { data } = await api.post(`/api/like/${logId}`)
   return data
