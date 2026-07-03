@@ -41,14 +41,14 @@ def haversine(la1, lo1, la2, lo2):
 def jwt_login_required(f):
     """JWT 전용 데코레이터 — React에서 호출하는 보호 라우트에 사용"""
     @wraps(f)
-    @jwt_required()
+    @jwt_login_required
     def decorated(*args, **kwargs):
         return f(*args, **kwargs)
     return decorated
 
 def admin_required(f):
     @wraps(f)
-    @jwt_required()
+    @jwt_login_required
     def decorated(*args, **kwargs):
         user = User.query.get(int(get_jwt_identity()))
         if not user or user.role != RoleEnum.ADMIN:
@@ -220,14 +220,14 @@ def token_refresh():
 
 
 @auth_bp.route('/me', methods=['GET'])
-@jwt_required()
+@jwt_login_required
 def me():
     user = User.query.get_or_404(int(get_jwt_identity()))
     return jsonify(serialize_user(user)), 200
 
 
 @auth_bp.route('/me', methods=['PUT'])
-@jwt_required()
+@jwt_login_required
 def update_me():
     user     = User.query.get_or_404(int(get_jwt_identity()))
     data     = request.get_json()
