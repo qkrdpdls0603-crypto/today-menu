@@ -47,12 +47,12 @@ export default function ChatBot() {
   const [loading,    setLoading]    = useState(false)
   const [userLoc,    setUserLoc]    = useState(null)
   const [locStatus,  setLocStatus]  = useState('idle')
-  const [plusOpen,     setPlusOpen]     = useState(false)   // + 버튼 팝업
-  const [savedLocs,    setSavedLocs]    = useState([])       // 마이페이지 저장 장소
-  const [locMode,      setLocMode]      = useState('current') // 'current' | 'saved_0' | 'saved_1' | 'saved_2'
-  const [locPicker,    setLocPicker]    = useState(false)     // 위치 선택 드롭다운
-  const [wishlist,     setWishlist]     = useState([])       // 찜한 식당 목록
-  const [mannerScore,  setMannerScore]  = useState(null)     // 매너온도
+  const [plusOpen,     setPlusOpen]     = useState(false)
+  const [savedLocs,    setSavedLocs]    = useState([])
+  const [locMode,      setLocMode]      = useState('current')
+  const [locPicker,    setLocPicker]    = useState(false)
+  const [wishlist,     setWishlist]     = useState([])
+  const [mannerScore,  setMannerScore]  = useState(null)
 
   const endRef   = useRef(null)
   const inputRef = useRef(null)
@@ -62,7 +62,6 @@ export default function ChatBot() {
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100)
-      // 저장 장소 + 매너온도 새로고침
       fetchMe().then((u) => {
         setSavedLocs(u.saved_locations ?? [])
         setMannerScore(u.manner_score ?? null)
@@ -70,7 +69,6 @@ export default function ChatBot() {
     }
   }, [open])
 
-  // + 팝업 외부 클릭 시 닫기
   useEffect(() => {
     if (!plusOpen) return
     const handler = (e) => {
@@ -80,11 +78,9 @@ export default function ChatBot() {
     return () => document.removeEventListener('mousedown', handler)
   }, [plusOpen])
 
-  // locPicker 외부 클릭 시 닫기
   useEffect(() => {
     if (!locPicker) return
     const handler = (e) => {
-      // 드롭다운 내부 클릭이면 무시 (closest 활용)
       if (e.target.closest?.('[data-loc-picker]')) return
       setLocPicker(false)
     }
@@ -92,20 +88,17 @@ export default function ChatBot() {
     return () => document.removeEventListener('mousedown', handler)
   }, [locPicker])
 
-  // ── Hook 다 선언된 후 조건 return ────────────────────────────────────────
   if (!user) return null
 
   const addMsg = (role, content, extra = {}) =>
     setMessages((p) => [...p, { role, content, ...extra }])
 
   const requestLocation = async () => {
-    // ON → OFF 토글
     if (locStatus === 'granted') {
       setUserLoc(null)
       setLocStatus('idle')
       return null
     }
-    // OFF → ON
     setLocStatus('asking')
     const loc = await getLocation()
     if (loc) { setUserLoc(loc); setLocStatus('granted'); return loc }
@@ -121,17 +114,14 @@ export default function ChatBot() {
     setInput('')
     setLoading(true)
 
-    // ── 위치 파라미터 결정 ──────────────────────────────────────────────
     let sendLat = null, sendLng = null, sendLocIndex = null
 
     if (mode === 'recommend') {
       if (locMode === 'current') {
-        // 현재 위치 — GPS 요청
         let loc = userLoc
         if (!loc && locStatus === 'idle') loc = await requestLocation()
         if (loc) { sendLat = loc.lat; sendLng = loc.lng }
       } else if (locMode.startsWith('saved_')) {
-        // 저장된 장소 — 인덱스로 백엔드에 전달
         sendLocIndex = parseInt(locMode.replace('saved_', ''), 10)
       }
     }
@@ -174,13 +164,6 @@ export default function ChatBot() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
-  // 위치 표시 색상 (locMode 기준)
-  const locColor = locMode === 'current' && locStatus === 'granted'
-    ? '#68D391'
-    : locMode.startsWith('saved_')
-      ? '#68D391'
-      : locStatus === 'denied' ? '#FC8181' : 'rgba(255,255,255,.5)'
-
   return (
     <>
       {/* ── FAB ── */}
@@ -198,116 +181,22 @@ export default function ChatBot() {
           {/* ── 헤더 ── */}
           <div className="chat-header" style={{ flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: '1.1rem' }}>🤖</span>
+              <img
+                src="/img/icon/logo.png"
+                alt="오늘 뭐먹지?"
+                style={{ height: 38, width: 38, objectFit: 'contain' }}
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '.88rem', lineHeight: 1.2 }}>
                   {mode === 'recommend' ? 'AI 메뉴 추천' : 'Q&A 도우미'}
                 </div>
-                <div style={{ fontSize: '.7rem', opacity: .6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {user.nickname}님 맞춤 · GPT
-                  {mannerScore != null && (
-                    <span style={{
-                      background: mannerScore >= 40 ? '#68D391' : mannerScore >= 30 ? '#F6AD55' : '#FC8181',
-                      color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: '.65rem', fontWeight: 700,
-                    }}>
-                      🌡️ {mannerScore}°
-                    </span>
-                  )}
+                <div style={{ fontSize: '.72rem', opacity: .75, marginTop: 2 }}>
+                  {user.nickname}님
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 5, alignItems: 'center', position: 'relative' }}>
-              {mode === 'recommend' && (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setLocPicker((o) => !o)}
-                    style={{
-                      background: 'rgba(255,255,255,.12)', border: 'none',
-                      color: locMode !== 'none' ? '#68D391' : 'rgba(255,255,255,.5)',
-                      borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontSize: '.7rem',
-                      display: 'flex', alignItems: 'center', gap: 4,
-                    }}>
-                    📍 {
-                      locMode === 'current'
-                        ? (locStatus === 'granted' ? '현위치 ✓' : locStatus === 'asking' ? '...' : '현위치')
-                        : locMode.startsWith('saved_')
-                          ? (savedLocs[parseInt(locMode.replace('saved_',''),10)]?.name ?? '저장장소')
-                          : '위치'
-                    } ▾
-                  </button>
-
-                  {/* 위치 선택 드롭다운 */}
-                  {locPicker && (
-                    <div data-loc-picker="true" style={{
-                      position: 'absolute', top: 30, right: 0, width: 220,
-                      background: 'var(--bg-white)', border: '1px solid var(--border-color)',
-                      borderRadius: 10, boxShadow: 'var(--shadow-lg)', overflow: 'hidden', zIndex: 20,
-                    }}>
-                      <div style={{ padding: '8px 12px 4px', fontSize: '.72rem', fontWeight: 700, color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
-                        위치 선택
-                      </div>
-
-                      {/* 현재 위치 */}
-                      <button
-                        onClick={async () => {
-                          setLocMode('current')
-                          setLocPicker(false)
-                          if (locStatus !== 'granted') await requestLocation()
-                        }}
-                        style={{
-                          width: '100%', padding: '9px 12px', border: 'none', cursor: 'pointer',
-                          textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
-                          background: locMode === 'current' ? '#F0FFF4' : 'none',
-                          fontSize: '.82rem', fontWeight: locMode === 'current' ? 700 : 400,
-                        }}>
-                        <span>📍</span>
-                        <span style={{ flex: 1 }}>현재 위치 (GPS)</span>
-                        {locMode === 'current' && <span style={{ color: '#276749', fontSize: '.7rem' }}>✓</span>}
-                      </button>
-
-                      {/* 저장된 장소들 */}
-                      {savedLocs.length > 0 && (
-                        <div style={{ borderTop: '1px solid var(--bg-surface)', padding: '4px 0' }}>
-                          <div style={{ padding: '4px 12px', fontSize: '.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>저장 장소</div>
-                          {savedLocs.map((loc, idx) => {
-                            const key = `saved_${idx}`
-                            const colors = ['#E53E3E','#3182CE','#38A169']
-                            return (
-                              <button key={idx}
-                                onClick={() => { setLocMode(key); setLocPicker(false) }}
-                                style={{
-                                  width: '100%', padding: '8px 12px', border: 'none', cursor: 'pointer',
-                                  textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
-                                  background: locMode === key ? '#EBF8FF' : 'none',
-                                  fontSize: '.82rem',
-                                }}>
-                                <span style={{ width: 18, height: 18, borderRadius: '50%', background: colors[idx], color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.65rem', fontWeight: 800, flexShrink: 0 }}>
-                                  {idx + 1}
-                                </span>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontWeight: locMode === key ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</div>
-                                  <div style={{ fontSize: '.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.address}</div>
-                                </div>
-                                {locMode === key && <span style={{ color: '#2B6CB0', fontSize: '.7rem', flexShrink: 0 }}>✓</span>}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {/* 저장 장소 없을 때 안내 */}
-                      {savedLocs.length === 0 && (
-                        <div style={{ padding: '8px 12px 10px', fontSize: '.78rem', color: 'var(--text-muted)', borderTop: '1px solid var(--bg-surface)' }}>
-                          <div style={{ marginBottom: 6 }}>저장된 장소가 없어요</div>
-                          <a href="/mypage" style={{ color: 'var(--color-info)', fontWeight: 600, fontSize: '.75rem' }}>
-                            마이페이지에서 추가 →
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
               <button onClick={resetChat}
                 style={{ background: 'rgba(255,255,255,.12)', border: 'none', color: '#fff', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontSize: '.7rem' }}>
                 초기화
@@ -347,7 +236,6 @@ export default function ChatBot() {
                     : `안녕하세요 ${user.nickname}님! 💬\n앱 사용법이 궁금하면 + 버튼을 눌러보세요.`
                   }
                 </div>
-                {/* 위치 안내 (추천 탭만) */}
                 {mode === 'recommend' && (
                   <div style={{ background: '#EBF8FF', borderRadius: 8, padding: '8px 10px', fontSize: '.76rem', color: '#2B6CB0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: savedLocs.length > 0 ? 6 : 0 }}>
@@ -392,6 +280,55 @@ export default function ChatBot() {
                         </button>
                       </div>
                     )}
+
+                    {/* 위치 선택 드롭다운 */}
+                    {locPicker && (
+                      <div data-loc-picker="true" style={{
+                        marginTop: 8,
+                        background: 'var(--bg-white)', border: '1px solid var(--border-color)',
+                        borderRadius: 10, boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
+                      }}>
+                        <button
+                          onClick={async () => {
+                            setLocMode('current')
+                            setLocPicker(false)
+                            if (locStatus !== 'granted') await requestLocation()
+                          }}
+                          style={{
+                            width: '100%', padding: '9px 12px', border: 'none', cursor: 'pointer',
+                            textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
+                            background: locMode === 'current' ? '#F0FFF4' : 'none',
+                            fontSize: '.82rem', fontWeight: locMode === 'current' ? 700 : 400,
+                          }}>
+                          <span>📍</span>
+                          <span style={{ flex: 1 }}>현재 위치 (GPS)</span>
+                          {locMode === 'current' && <span style={{ color: '#276749', fontSize: '.7rem' }}>✓</span>}
+                        </button>
+                        {savedLocs.map((loc, idx) => {
+                          const key = `saved_${idx}`
+                          const colors = ['#E53E3E','#3182CE','#38A169']
+                          return (
+                            <button key={idx}
+                              onClick={() => { setLocMode(key); setLocPicker(false) }}
+                              style={{
+                                width: '100%', padding: '8px 12px', border: 'none', cursor: 'pointer',
+                                textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
+                                background: locMode === key ? '#EBF8FF' : 'none',
+                                fontSize: '.82rem',
+                              }}>
+                              <span style={{ width: 18, height: 18, borderRadius: '50%', background: colors[idx], color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.65rem', fontWeight: 800, flexShrink: 0 }}>
+                                {idx + 1}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: locMode === key ? 700 : 500 }}>{loc.name}</div>
+                                <div style={{ fontSize: '.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.address}</div>
+                              </div>
+                              {locMode === key && <span style={{ color: '#2B6CB0', fontSize: '.7rem', flexShrink: 0 }}>✓</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -408,7 +345,6 @@ export default function ChatBot() {
                   }}>
                   {m.content}
                 </div>
-                {/* 추천 식당 카드 링크 */}
                 {m.role === 'assistant' && m.restaurants?.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '6px 0 8px 4px' }}>
                     {m.restaurants.map((r) => (
@@ -434,7 +370,7 @@ export default function ChatBot() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: '1.1rem',
                         }}>
-                          {{'한식':'🍚','일식':'🍣','중식':'🥟','양식':'🥩','분식':'🍜','치킨':'🍗','피자':'🍕','카페':'☕'}[r.category] ?? '🍴'}
+                          {{'한식':'🍚','일식':'🍣','중식':'🥟','양식':'🥩','분식':'🍜','치킨':'🍗','카페':'☕'}[r.category] ?? '🍴'}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: '.85rem', marginBottom: 2 }}>{r.name}</div>
@@ -452,7 +388,6 @@ export default function ChatBot() {
               </div>
             ))}
 
-            {/* 로딩 */}
             {loading && (
               <div className="chat-msg bot" style={{ color: 'var(--text-muted)' }}>
                 {mode === 'recommend' ? '🍽️ 추천 찾는 중...' : '💬 답변 작성 중...'}
@@ -484,7 +419,6 @@ export default function ChatBot() {
                 {plusOpen ? '✕' : '+'}
               </button>
 
-              {/* 빠른 질문 팝업 */}
               {plusOpen && (
                 <div style={{
                   position: 'absolute', bottom: 44, left: 0,
@@ -496,7 +430,6 @@ export default function ChatBot() {
                   overflow: 'hidden',
                   zIndex: 10,
                 }}>
-                  {/* 팝업 헤더 */}
                   <div style={{
                     padding: '10px 14px 8px',
                     borderBottom: '1px solid var(--border-color)',
@@ -507,7 +440,6 @@ export default function ChatBot() {
                     {mode === 'recommend' ? '빠른 메뉴 추천' : '자주 묻는 질문'}
                   </div>
 
-                  {/* 찜 목록 (추천 탭 + 찜 있을 때만) */}
                   {mode === 'recommend' && wishlist.length > 0 && (
                     <div style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <div style={{ padding: '6px 14px 3px', fontSize: '.7rem', fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -534,7 +466,6 @@ export default function ChatBot() {
                     </div>
                   )}
 
-                  {/* 빠른 질문 목록 */}
                   <div style={{ padding: '6px 0' }}>
                     {QUICK[mode].map(({ icon, text }) => (
                       <button key={text}
@@ -559,7 +490,6 @@ export default function ChatBot() {
               )}
             </div>
 
-            {/* 텍스트 입력 */}
             <input
               ref={inputRef}
               value={input}
@@ -581,7 +511,6 @@ export default function ChatBot() {
               onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
             />
 
-            {/* 전송 버튼 */}
             <button
               onClick={() => send()}
               disabled={loading || !input.trim()}

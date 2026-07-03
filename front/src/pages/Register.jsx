@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../api/services'
 
-const PREF_FOODS = ['한식','일식','중식','양식','분식','치킨','피자','채식','해산물','매운맛']
+const PREF_FOODS = ['한식','일식','중식','양식','분식','치킨','채식','해산물','매운맛']
 const REQ_TERMS  = ['만 14세 이상입니다.','쇼핑 이용약관 동의','전자금융거래 이용약관 동의','개인정보 제3자 제공 동의']
 const OPT_TERMS  = ['마케팅 목적 개인정보 수집 및 이용 동의','광고성 정보 수신 동의']
 const SUB_TERMS  = ['이메일 수신 동의','SMS, SNS 수신 동의','앱 푸시 수신 동의']
@@ -41,7 +41,6 @@ export default function Register() {
   }
 
   return (
-
     <div className="register-wrap">
       <div className="register-card">
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -54,19 +53,16 @@ export default function Register() {
         </div>
 
         <form id="registerForm" onSubmit={handleSubmit}>
-          {/* 이메일 */}
           <div className="form-group form-icon-wrap">
             <span className="form-icon">✉️</span>
             <input type="email" className="form-control" placeholder="아이디(이메일)" required
               value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
-          {/* 비밀번호 */}
           <div className="form-group form-icon-wrap">
             <span className="form-icon">🔒</span>
             <input type="password" className="form-control" placeholder="비밀번호 (8자 이상)" required minLength={8}
               value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </div>
-          {/* 비밀번호 확인 */}
           <div className="form-group form-icon-wrap">
             <span className="form-icon">🔒</span>
             <input type="password" className="form-control" placeholder="비밀번호 확인"
@@ -74,19 +70,16 @@ export default function Register() {
               onChange={(e) => { setForm({ ...form, password2: e.target.value }); setPwError('') }} />
             {pwError && <div className="form-error">{pwError}</div>}
           </div>
-          {/* 닉네임 */}
           <div className="form-group form-icon-wrap">
             <span className="form-icon">👤</span>
             <input type="text" className="form-control" placeholder="이름 (닉네임)" required
               value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
           </div>
-          {/* 알러지 */}
           <div className="form-group form-icon-wrap">
             <span className="form-icon">🚫</span>
             <input type="text" className="form-control" placeholder="알러지 정보 (예: 오이, 갑각류, 땅콩)"
               value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} />
           </div>
-          {/* 선호 메뉴 */}
           <div className="form-group">
             <div className="form-label">좋아하는 음식 <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(선택)</span></div>
             <div className="reg-prefs">
@@ -102,7 +95,6 @@ export default function Register() {
 
           <hr className="divider" />
 
-          {/* 약관 */}
           <div className="reg-terms-box">
             <div className="reg-terms-all">
               <input type="checkbox" id="agreeAll" checked={agreeAll} onChange={(e) => handleAgreeAll(e.target.checked)} />
@@ -134,7 +126,6 @@ export default function Register() {
           </div>
 
           {error && <div className="alert alert-danger">{error}</div>}
-
 
           <div style={{ marginTop: 16 }}>
             <button type="submit" disabled={loading}
