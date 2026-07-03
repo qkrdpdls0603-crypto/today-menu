@@ -222,7 +222,7 @@ const handleCancelParty = async () => {
 const handleFinishParty = async () => {
   if (!window.confirm("파티를 종료하시겠습니까? 종료 후에는 멤버들의 매너 점수를 평가할 수 있습니다.")) return;
   try {
-    await closeParty(partyId);
+    await(partyId);
     alert("파티가 종료되었습니다.");
     const d = await getParty(partyId);
     setParty(d);

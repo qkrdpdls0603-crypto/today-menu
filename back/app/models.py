@@ -3,8 +3,8 @@ from datetime import datetime
 import enum
 
 party_kicked_users = db.Table('party_kicked_users',
-    db.Column('party_id', db.Integer, db.ForeignKey('parties.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    db.Column('party_id', db.Integer, db.ForeignKey('parties.party_id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('users.user_id'), primary_key=True)
 )
 
 class RoleEnum(enum.Enum):
@@ -19,8 +19,6 @@ class StatusEnum(enum.Enum):
 
 class User(db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-
     user_id      = db.Column(db.Integer, primary_key=True)
     email        = db.Column(db.String(100), unique=True, nullable=False)
     password     = db.Column(db.String(200), nullable=False)
@@ -30,6 +28,7 @@ class User(db.Model):
     allergies    = db.Column(db.Text)
     address      = db.Column(db.String(200), nullable=True)
     gender       = db.Column(db.String(20), nullable=True, default='미설정')
+    saved_locations = db.Column(db.JSON, default=list)
     role         = db.Column(db.Enum(RoleEnum), default=RoleEnum.USER)
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -55,8 +54,6 @@ class Restaurant(db.Model):
 
 class Party(db.Model):
     __tablename__ = 'parties'
-    id = db.Column(db.Integer, primary_key=True)
-
     party_id      = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.restaurant_id'), nullable=False)
     host_id       = db.Column(db.Integer, db.ForeignKey('users.user_id'),             nullable=False)
@@ -156,3 +153,32 @@ class Inquiry(db.Model):
             'writer': self.writer.nickname if self.writer else "알 수 없음"
         }
 
+
+class Review(db.Model):
+    """식당 리뷰 + 별점"""
+    __tablename__ = 'reviews'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'restaurant_id', name='_one_review_per_user_restaurant'),
+    )
+
+    review_id     = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.restaurant_id'), nullable=False)
+    rating        = db.Column(db.Float, nullable=False)   # 1.0 ~ 5.0
+    content       = db.Column(db.Text, nullable=True)
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at    = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    writer     = db.relationship('User',       foreign_keys=[user_id])
+    restaurant = db.relationship('Restaurant', foreign_keys=[restaurant_id], backref='reviews')
+
+    def to_dict(self):
+        return {
+            'review_id':     self.review_id,
+            'user_id':       self.user_id,
+            'restaurant_id': self.restaurant_id,
+            'rating':        self.rating,
+            'content':       self.content or '',
+            'nickname':      self.writer.nickname if self.writer else '알 수 없음',
+            'created_at':    self.created_at.strftime('%Y-%m-%d') if self.created_at else '',
+        }

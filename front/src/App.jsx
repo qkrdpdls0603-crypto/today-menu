@@ -22,9 +22,9 @@ import NotFound      from './pages/NotFound'
 import ScrollToTop   from './components/ScrollToTop'
 import Company       from './pages/Company'
 import Terms         from './pages/Terms'
-import Terms2 from './pages/Terms2'
 import Support       from './pages/Support'
 import Notice        from './pages/Notice'
+import MannerHistory from './pages/MannerHistory'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -45,18 +45,10 @@ function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       user, loading,
       login: (data) => {
-        if (!data || !data.access_token) return;
-
-        localStorage.setItem('token', data.access_token);
-
-        try {
-          TokenStore.setAccess(data.access_token);
-        } catch (e) {
-          console.warn("TokenStore 저장 실패, localStorage를 사용합니다.");
-        }
-
-        const { access_token, refresh_token, ...userInfo } = data;
-        setUser(Object.keys(userInfo).length ? userInfo : data);
+        if (!data || !data.access_token) return
+        TokenStore.setTokens(data.access_token, data.refresh_token ?? null)
+        const { access_token, refresh_token, ...userInfo } = data
+        setUser(Object.keys(userInfo).length ? userInfo : data)
       },
       logout: ()  => { TokenStore.clear(); setUser(null) },
     }}>
@@ -97,6 +89,7 @@ export default function App() {
                 <Route path="/party/:partyId"          element={<PartyDetail />} />
                 <Route path="/mypage"                  element={<PrivateRoute><MyPage /></PrivateRoute>} />
                 <Route path="/mypage/edit"             element={<PrivateRoute><MyPageEdit /></PrivateRoute>} />
+                <Route path="/mypage/manner-history"   element={<PrivateRoute><MannerHistory /></PrivateRoute>} />
                 <Route path="/game"                    element={<Game />} />
                 <Route path="/auth/naver/callback"     element={<NaverCallback />} />
                 <Route path="/company"                 element={<Company />} />

@@ -246,6 +246,7 @@ export default function MyPage() {
         <div className="profile-section">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3>매너점수</h3>
+            <Link to="/mypage/manner-history" className="btn btn-sm btn-secondary">상세 내역 →</Link>
           </div>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <div ref={gauge2Ref} style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
@@ -337,30 +338,6 @@ export default function MyPage() {
           )}
         </div>
 
-<<<<<<< HEAD
-        {activeTab === 'liked' && (
-          liked_logs.length > 0 ? (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {(showAllFavorites ? liked_logs : liked_logs.slice(0, FAVORITE_LIMIT)).map((log) => (
-                  <Link
-                    to={`/menu/${log.restaurant?.id ?? log.recommended_restaurant_id}`}
-                    className="card rest-card"
-                    key={log.log_id}
-                  >
-                    <RestaurantImage
-                      category={log.restaurant?.category}
-                      name={log.restaurant?.name}
-                      style={{ height: 120, width: '100%', objectFit: 'cover', borderRadius: '8px 8px 0 0' }}
-                    />
-                    <div className="card-body">
-                      <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
-                      <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>
-                      <div className="rest-addr" style={{ marginTop: 4 }}>
-                        {(log.restaurant?.address ?? '').slice(0, 20)}
-                        {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
-                      </div>
-=======
         {liked_logs.length > 0 ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -381,7 +358,6 @@ export default function MyPage() {
                     <div className="rest-addr" style={{ marginTop: 4 }}>
                       {(log.restaurant?.address ?? '').slice(0, 20)}
                       {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
->>>>>>> main
                     </div>
                   </div>
                 </Link>
@@ -470,6 +446,20 @@ export default function MyPage() {
               <p>아직 활동 내역이 없습니다</p>
             </div>
           )}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+          <Link
+            to="/support"
+            state={{ defaultTab: 'inquiry' }}
+            style={{
+              background: 'var(--color-primary)', color: '#fff',
+              borderRadius: 8, padding: '7px 16px',
+              fontSize: '.85rem', fontWeight: 700,
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            💬 고객문의
+          </Link>
         </div>
       </div>
 

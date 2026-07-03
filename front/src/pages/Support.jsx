@@ -1,15 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 export default function Support() {
+  const location = useLocation();
+
   // 0. 사용자 권한 상태 (테스트용)
-  const [userRole, setUserRole] = useState("user"); 
-  
+  const [userRole, setUserRole] = useState("user");
+
   // 1. UI 조작용 전역 상태 (탭, 검색어, 모달)
-  const [activeTab, setActiveTab] = useState("all");
+  // 마이페이지 고객문의 버튼에서 state.defaultTab='inquiry' 로 진입 시 자동 선택
+  const [activeTab, setActiveTab] = useState(location.state?.defaultTab ?? "all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null); 
   const [openInquiryId, setOpenInquiryId] = useState(null); 
+
+  // location state 변경 시 탭 자동 전환
+  useEffect(() => {
+    if (location.state?.defaultTab) {
+      setActiveTab(location.state.defaultTab);
+      if (location.state.defaultTab === 'inquiry') {
+        setIsInquiryModalOpen(true);
+      }
+    }
+  }, [location.state]);
 
   // 2. 페이지네이션 상태 (현재 페이지 관리)
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,24 +43,16 @@ export default function Support() {
   ];
 
   // 4. 1:1 문의사항 로컬 목록 상태
-  const [inquiries, setInquiries] = useState([]); 
-  
-  // 🌟 서버에서 데이터 가져오기
-  useEffect(() => {
-    const fetchInquiries = async () => {
-      try {
-        const response = await fetch('/api/support/inquiries'); 
-        if (response.ok) {
-          const data = await response.json();
-          setInquiries(data);
-        }
-      } catch (error) {
-        console.error("문의 목록을 가져오는 중 오류 발생:", error);
-      }
-    };
-
-    fetchInquiries();
-  }, []);
+  const [inquiries, setInquiries] = useState(() => {
+    const _d = [
+      { id: 1, title: "방장이 약속 장소에 나오지 않았어요.", content: "오늘 점심 파티 약속인데 방장님이 아무 말 없이 안 나오셨어요.", writer: "leewh", date: "2026-06-30", answer: "안녕하세요, 투데이메뉴 관리자입니다. 패널티 시스템을 즉시 가동하겠습니다." },
+      { id: 2, title: "룰렛 게임 판이 도중에 멈추는 현상이 있습니다.", content: "모바일 크롬 브라우저로 룰렛 돌릴 때 화면이 멈추는데 확인 부탁드립니다.", writer: "gildong", date: "2026-06-29", answer: null }
+    ];
+    try {
+      const saved = localStorage.getItem('today_menu_inquiries');
+      return saved ? JSON.parse(saved) : _d;
+    } catch { return _d; }
+  });
 
 
   // 6. 문의글 아코디언 핸들러
@@ -90,7 +96,9 @@ export default function Support() {
 
     if (response.ok) {
       const savedInquiry = await response.json();
-      setInquiries([savedInquiry, ...inquiries]);
+      const updated = [savedInquiry, ...inquiries];
+    setInquiries(updated);
+    try { localStorage.setItem('today_menu_inquiries', JSON.stringify(updated)); } catch {}
       setNewTitle("");
       setNewContent("");
       setIsInquiryModalOpen(false);
@@ -117,9 +125,13 @@ export default function Support() {
     });
 
     if (response.ok) {
-      setInquiries(inquiries.map(item => 
+      const updated2 = inquiries.map(item =>
         item.id === id ? { ...item, answer: adminReplyText } : item
-      ));
+      );
+    setInquiries(updated2);
+    try { localStorage.setItem('today_menu_inquiries', JSON.stringify(updated2)); } catch {}
+    // dummy to avoid duplicate
+    ((x) => x);
       setAdminReplyText("");
       alert("👑 답변 등록이 완료되었습니다.");
     } else {
@@ -211,7 +223,7 @@ export default function Support() {
           {(activeTab === "all" || activeTab === "inquiry") && (
             <button
               onClick={() => { setIsInquiryModalOpen(true); setFormError(""); }}
-              className="w-full sm:w-auto px-5 py-2 bg-[var(--bg-dark)] hover:opacity-90 text-white font-black text-xs sm:text-sm rounded-full shadow-md transition-all flex items-center justify-center gap-1"
+              className="w-full sm:w-auto px-5 py-2 font-black text-xs sm:text-sm rounded-full shadow-md transition-all flex items-center justify-center gap-1" style={{ background: "var(--color-primary)", color: "#fff" }}
             >
               <span>✍️</span> 1:1 문의하기
             </button>
