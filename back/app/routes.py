@@ -1650,7 +1650,7 @@ def toggle_favorite():
 @api_bp.route('/favorites', methods=['GET'])
 @jwt_login_required
 def get_my_favorites():
-    user_id   = int(get_jwt_identity())
+    user_id = int(get_jwt_identity())
     favorites = Favorite.query.filter_by(user_id=user_id).all()
     
     result = [
