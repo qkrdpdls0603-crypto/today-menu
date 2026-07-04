@@ -919,7 +919,7 @@ def chatbot():
     if nearby_str and loc_name:
         nearby_str = f'[{loc_name} 근처] ' + nearby_str
 
-    all_rests = [f"{r.name}({r.category})" for r in Restaurant.query.limit(30).all()]
+    all_rests = [f"{r.name}({r.category})" for r in Restaurant.query.with_entities(Restaurant.name, Restaurant.category).limit(30).all()]
     all_rests_str = ', '.join(all_rests) or '등록된 식당 없음'
 
     if mode == 'recommend':
@@ -1167,7 +1167,10 @@ A. 마이페이지 최하단 '회원 탈퇴하기' 버튼을 누르세요.
         matched_restaurants = []
         if mode == 'recommend':
             # 전체 식당 중 응답에 이름이 언급된 것 찾기 (최대 3개)
-            all_rests_for_match = Restaurant.query.all()
+            all_rests_for_match = Restaurant.query.with_entities(
+                Restaurant.restaurant_id, Restaurant.name, Restaurant.category,
+                Restaurant.address, Restaurant.avg_rating
+            ).all()
             for r in all_rests_for_match:
                 if r.name in reply:
                     matched_restaurants.append({
