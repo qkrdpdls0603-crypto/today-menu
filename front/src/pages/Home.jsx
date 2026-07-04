@@ -132,25 +132,26 @@ export default function Home() {
   const [likedCafeteriaIds, setLikedCafeteriaIds] = useState(() => new Set())
   const bannerTimer = useRef(null)
 
-  useEffect(() => {
-    if (user) {
-      getMyFavorites()
-        .then((data) => {
-          const ids = new Set(data.map(item => item.id));
-          setLikedCafeteriaIds(ids);
-        })
-        .catch(err => console.error('찜 목록 로드 실패:', err));
-    }
-  }, [user]);
+
 
   useEffect(() => {
-    getRestaurants({ cat: '전체', page: 1 })
-      .then((d) => setTrending(d.items?.length ? d.items : SAMPLE_RESTAURANTS))
-      .catch((err) => {
-        console.error('trending 로드 실패:', err)
-        setTrending(SAMPLE_RESTAURANTS)
-      })
-  }, [])
+    Promise.all([
+      getRestaurants({ cat: '전체', page: 1 }),
+      user ? getMyFavorites().catch(() => []) : Promise.resolve([])
+    ]).then(([d, favData]) => {
+      const favIds = new Set((favData || []).map(f => f.id))
+      if (user) setLikedCafeteriaIds(favIds)
+      const items = d.items?.length ? d.items : SAMPLE_RESTAURANTS
+      // is_liked를 favorites 데이터로 복원
+      setTrending(items.map(r => ({
+        ...r,
+        is_liked: favIds.has(r.id) || r.is_liked || false
+      })))
+    }).catch((err) => {
+      console.error('trending 로드 실패:', err)
+      setTrending(SAMPLE_RESTAURANTS)
+    })
+  }, [user])
 
   useEffect(() => {
     bannerTimer.current = setInterval(() => setBannerIdx((i) => (i + 1) % 3), 4500)
@@ -299,7 +300,7 @@ export default function Home() {
               <Cafeteria
                 item={r}
                 to={`/menu/${r.id}`}
-                liked={Boolean(r.is_liked)} 
+                liked={Boolean(r.is_liked) || likedCafeteriaIds.has(r.id)} 
                 onToggleLike={() => handleCafeteriaLike(r)}
                 fallbackImage={SAMPLE_RESTAURANTS[index % SAMPLE_RESTAURANTS.length].image}
               />
