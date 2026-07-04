@@ -1,7 +1,7 @@
 // src/pages/MyPage.jsx
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { getMyPage, toggleLike, saveFavoriteLocations, searchKakao, toggleFavoriteAction } from '../api/services'
+import { getMyPage, toggleLike, saveFavoriteLocations, searchKakao, toggleFavoriteAction, getMyFavorites } from '../api/services'
 import RestaurantImage from '../components/RestaurantImage'
 import { useAuth } from '../App'
 import { processTags } from '../utils'
@@ -25,14 +25,39 @@ export default function MyPage() {
 
   // ── 데이터 로드 ───────────────────────────────────────────────────────────
   useEffect(() => {
-  getMyPage()
-    .then((d) => {
-      console.log("서버에서 받은 전체 데이터:", d);
-      setData(d);
-      setSavedLocs(d.user.saved_locations ?? []);
-    })
-    .catch((err) => console.error('마이페이지 로드 실패:', err));
-}, [location.pathname]);
+    Promise.all([getMyPage(), getMyFavorites().catch(() => [])])
+      .then(([d, favData]) => {
+        console.log("서버에서 받은 전체 데이터:", d);
+        // favorites 테이블 데이터를 liked_logs에 통합
+        const favLogs = (favData || []).map(f => ({
+          log_id: null,
+          is_liked: true,
+          restaurant: {
+            restaurant_id: f.id,
+            id:            f.id,
+            name:          f.name,
+            category:      f.category,
+            address:       f.address || '',
+            avg_rating:    f.avg_rating || 0,
+          },
+          recommended_restaurant_id: f.id,
+        }));
+        const merged = {
+          ...d,
+          liked_logs: [
+            ...(d?.liked_logs || []),
+            ...favLogs.filter(fav =>
+              !(d?.liked_logs || []).find(l =>
+                (l.restaurant?.restaurant_id ?? l.restaurant?.id) === fav.restaurant.id
+              )
+            ),
+          ],
+        };
+        setData(merged);
+        setSavedLocs(d.user?.saved_locations ?? []);
+      })
+      .catch((err) => console.error('마이페이지 로드 실패:', err));
+  }, [location.pathname]);
 
   // ── 매너 게이지 SVG 애니메이션 ───────────────────────────────────────────
   useEffect(() => {
@@ -269,14 +294,6 @@ export default function MyPage() {
         </div>
 
         <div className="profile-section">
-          {user?.role?.toLowerCase() === 'admin' && (
-            <div style={{ marginBottom: 16 }}>
-              <Link to="/admin"
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: 10, textDecoration: 'none', fontWeight: 700, color: 'var(--color-danger)' }}>
-                ⚙️ 관리자 페이지로 이동
-              </Link>
-            </div>
-          )}
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3>매너점수</h3>
             <Link to="/mypage/manner-history" className="btn btn-sm btn-secondary">상세 내역 →</Link>
