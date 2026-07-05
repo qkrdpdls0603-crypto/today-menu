@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import api from '../api/axiosInstance';
 import { TokenStore } from '../api/axiosInstance';
 
 export default function Support() {
@@ -88,21 +89,22 @@ export default function Support() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/support/inquiries', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          content: trimmedContent
-        })
+      const res = await api.post('/api/support/inquiries', {
+
+        title: trimmedTitle,
+
+        content: trimmedContent
+
       });
 
-      const result = await response.json();
-      
-      if (response.ok) {
+
+
+      const result = res.data;
+
+
+
+      if (res.status < 400) {
+
           const updated = [result, ...inquiries];
           setInquiries(updated);
           try {
@@ -114,9 +116,10 @@ export default function Support() {
           setNewContent("");
           setIsInquiryModalOpen(false);
           alert("문의사항이 등록되었습니다.");
-          const fetchList = await fetch('http://localhost:5000/api/support/inquiries');
-          const newList = await fetchList.json();
-          setInquiries(newList);
+          try {
+            const listRes = await api.get('/api/support/inquiries');
+            setInquiries(Array.isArray(listRes.data) ? listRes.data : []);
+          } catch {}
       } else {
           // 서버에서 422 에러가 올 경우 상세 내용 출력
           console.error("서버 에러:", result);
@@ -135,11 +138,11 @@ export default function Support() {
 
 
   try {
-    const response = await fetch(`/api/support/inquiries/${id}/answer`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answer: adminReplyText })
+    const response = await api.patch(`/api/support/inquiries/${id}/answer`, {
+      answer: adminReplyText
     });
+
+    if (response.status < 400) {
 
     if (response.ok) {
       const updated2 = inquiries.map(item =>
