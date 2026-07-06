@@ -8,10 +8,9 @@ const imageWrapClass = 'h-[250px] overflow-hidden bg-[#FFF4EA] max-[540px]:h-[13
 const bodyClass = 'px-[18px] pb-[18px] pt-7 max-[540px]:p-[14px]'
 const topRowClass = 'mb-5 flex items-center justify-between gap-3'
 const likeButtonClass =
-  'grid h-9 w-9 place-items-center rounded-full bg-white text-[2rem] leading-none text-[#1E9BFF] transition hover:scale-105 active:scale-95'
+  'grid h-9 w-9 place-items-center rounded-full bg-white/90 text-[1.45rem] leading-none text-[#5B4038] shadow-[0_4px_9px_rgba(0,0,0,0.14)] transition hover:scale-105 active:scale-95'
 const likedButtonClass = 'text-[var(--color-primary)]'
 
-// const bodyClass = 'px-[18px] pb-[18px] pt-7 max-[540px]:p-[14px]'
 const categoryBadgeClass =
   'inline-flex rounded-[var(--border-radius)] bg-[var(--color-primary)] px-2 py-[5px] text-[0.78rem] font-extrabold text-white'
 const titleClass = 'mt-5 mb-1.5 text-[1.08rem] font-black text-[var(--text-primary)]'

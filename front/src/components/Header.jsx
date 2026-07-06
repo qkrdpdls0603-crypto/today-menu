@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import { logout } from '../api/services'
+import PartyNotification from './PartyNotification'
 
 const NAV_LINKS = [
   { to: '/', label: '홈', end: true },
@@ -90,9 +91,10 @@ export default function Header() {
               </span>
             </Link>
 
+            {user && <PartyNotification />}
             {user ? (
               <button onClick={handleLogout} className={`${headerIconLink} group mr-1 max-md:hidden`}>
-                <img src="/img/logout.png" className="h-[35px] w-[35px] object-contain" alt="logout" />
+                <img src="/img/icon/logout.png" className="h-[35px] w-[35px] object-contain" alt="logout" onError={(e) => { e.target.style.display="none" }} />
                 <span className="whitespace-nowrap text-[0.74rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">
                 로그아웃
               </span>
@@ -100,7 +102,7 @@ export default function Header() {
             ) : (
               <>
                 <Link to="/login" className={`${headerIconLink} group mr-1 max-md:hidden`}>
-                  <img src="/img/login.png" 
+                  <img src="/img/icon/login.png" onError={(e) => { e.target.style.display="none" }} 
                   className="h-[35px] w-[35px] object-contain" 
                   alt="login" />
                   <span className="whitespace-nowrap text-[0.74rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">

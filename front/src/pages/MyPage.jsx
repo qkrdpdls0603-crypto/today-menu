@@ -1,7 +1,7 @@
 // src/pages/MyPage.jsx
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { getMyPage, toggleLike, saveFavoriteLocations, searchKakao, toggleFavoriteAction } from '../api/services'
+import { getMyPage, toggleLike, saveFavoriteLocations, searchKakao, toggleFavoriteAction, getMyFavorites } from '../api/services'
 import RestaurantImage from '../components/RestaurantImage'
 import { useAuth } from '../App'
 import { processTags } from '../utils'
@@ -20,19 +20,46 @@ export default function MyPage() {
   const [savedLocs, setSavedLocs] = useState([])
   const [locSearch, setLocSearch] = useState('')
   const [locResults, setLocResults] = useState([])
+  const [pageLoading, setPageLoading] = useState(true)
   const [locLoading, setLocLoading] = useState(false)
   const [locMsg, setLocMsg] = useState('')
 
   // ── 데이터 로드 ───────────────────────────────────────────────────────────
   useEffect(() => {
-  getMyPage()
-    .then((d) => {
-      console.log("서버에서 받은 전체 데이터:", d);
-      setData(d);
-      setSavedLocs(d.user.saved_locations ?? []);
-    })
-    .catch((err) => console.error('마이페이지 로드 실패:', err));
-}, [location.pathname]);
+    Promise.all([getMyPage(), getMyFavorites().catch(() => [])])
+      .then(([d, favData]) => {
+        console.log("서버에서 받은 전체 데이터:", d);
+        // favorites 테이블 데이터를 liked_logs에 통합
+        const favLogs = (favData || []).map(f => ({
+          log_id: null,
+          is_liked: true,
+          restaurant: {
+            restaurant_id: f.id,
+            id:            f.id,
+            name:          f.name,
+            category:      f.category,
+            address:       f.address || '',
+            avg_rating:    f.avg_rating || 0,
+          },
+          recommended_restaurant_id: f.id,
+        }));
+        const merged = {
+          ...d,
+          liked_logs: [
+            ...(d?.liked_logs || []),
+            ...favLogs.filter(fav =>
+              !(d?.liked_logs || []).find(l =>
+                (l.restaurant?.restaurant_id ?? l.restaurant?.id) === fav.restaurant.id
+              )
+            ),
+          ],
+        };
+        setData(merged);
+        setSavedLocs(d.user?.saved_locations ?? []);
+        setPageLoading(false);
+      })
+      .catch((err) => { console.error('마이페이지 로드 실패:', err); setPageLoading(false); });
+  }, [location.pathname]);
 
   // ── 매너 게이지 SVG 애니메이션 ───────────────────────────────────────────
   useEffect(() => {
@@ -89,13 +116,31 @@ export default function MyPage() {
   }
 
   // ── 찜 토글 ──────────────────────────────────────────────────────────────
-  const handleLike = async (logId) => {
-    toggleFavoriteAction({
-      id: item.id,
-      list: trending,
-      setter: setTrending,
-      type: 'restaurant'
-    });
+  const handleLike = async (log) => {
+    const logId  = log?.log_id
+    const restId = log?.restaurant?.id ?? log?.restaurant?.restaurant_id
+
+    // 낙관적 업데이트 — is_liked 토글
+    setData(prev => ({
+      ...prev,
+      liked_logs: (prev?.liked_logs || []).map(l => {
+        if (logId && l.log_id === logId) return { ...l, is_liked: !l.is_liked }
+        if (restId && (l.restaurant?.id ?? l.restaurant?.restaurant_id) === restId) return { ...l, is_liked: !l.is_liked }
+        return l
+      })
+    }))
+
+    // 서버 요청
+    try {
+      if (logId) {
+        await toggleLike(logId)
+      } else if (restId) {
+        const apiMod = (await import('../api/axiosInstance')).default
+        await apiMod.post('/api/favorites', { restaurant_id: restId })
+      }
+    } catch {
+      getMyPage().then(d => setData(d)).catch(() => {})
+    }
   }
 
   // 통계 카드 '찜한 메뉴' 클릭 시 찜목록 섹션으로 스크롤
@@ -129,16 +174,30 @@ export default function MyPage() {
   const dislikes = processTags(user.preferences?.dislikes);
   const mannerScore = user.manner_score;
 
+  // liked_logs(추천 찜) + rec_logs(is_liked) 통합
   const allLikedLogs = [
-    ...apiLikedLogs,
-    ...rec_logs.filter((r) => r.is_liked && !apiLikedLogs.find(f => f.log_id === r.log_id))
+    ...apiLikedLogs.map(item => ({
+      ...item,
+      log_id: item.log_id ?? item.id ?? Math.random(),
+      restaurant: item.restaurant || null,
+    })),
+    ...rec_logs.filter(r =>
+      r.is_liked &&
+      !apiLikedLogs.find(f =>
+        (f.restaurant?.id ?? f.restaurant?.restaurant_id) ===
+        (r.restaurant?.id ?? r.restaurant?.restaurant_id)
+      )
+    )
   ];
 
   const displayLikedLogs = Array.from(
     new Map(
-      allLikedLogs.map(item => [item.restaurant?.id ?? item.log_id, item])
+      allLikedLogs.map(item => [
+        item.restaurant?.id ?? item.restaurant?.restaurant_id ?? item.log_id,
+        item
+      ])
     ).values()
-  );
+  ).filter(item => item.restaurant);
 
   const R = 36
   const circ = 2 * Math.PI * R
@@ -224,6 +283,14 @@ export default function MyPage() {
         </div>
       </div>
 
+      {user?.role?.toLowerCase() === 'admin' && (
+        <div style={{ marginBottom: 16 }}>
+          <Link to="/admin"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: 10, textDecoration: 'none', fontWeight: 700, color: 'var(--color-danger)' }}>
+            ⚙️ 관리자 페이지로 이동
+          </Link>
+        </div>
+      )}
       {/* ── 프로필 + 매너점수 ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 16 }}>
         <div className="profile-section">
@@ -354,9 +421,9 @@ export default function MyPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {(showAllFavorites ? displayLikedLogs : displayLikedLogs.slice(0, FAVORITE_LIMIT)).map((log) => (
                 <Link
-                  to={`/menu/${log.restaurant?.id ?? log.recommended_restaurant_id}`}
+                  to={`/menu/${log.restaurant?.id ?? log.restaurant?.restaurant_id ?? log.recommended_restaurant_id}`}
                   className="card rest-card"
-                  key={log.log_id}
+                  key={log.log_id ?? log.restaurant?.restaurant_id}
                 >
                   <RestaurantImage
                     category={log.restaurant?.category}
@@ -405,11 +472,11 @@ export default function MyPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
           {rec_logs.slice(0, 3).map((log) => (
             <div
-              key={log.log_id}
+              key={log.log_id ?? log.restaurant?.restaurant_id}
               style={{ display: 'flex', gap: 14, padding: 14, background: 'var(--bg-white)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)' }}
             >
               <Link
-                to={`/menu/${log.restaurant?.id ?? log.recommended_restaurant_id}`}
+                to={`/menu/${log.restaurant?.id ?? log.restaurant?.restaurant_id ?? log.recommended_restaurant_id}`}
                 style={{ display: 'flex', gap: 14, flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
               >
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFF5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
@@ -424,7 +491,7 @@ export default function MyPage() {
                 </div>
               </Link>
               <button
-                onClick={() => handleLike(log.log_id)}
+                onClick={() => handleLike(log)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
               >
                 {log.is_liked ? '❤️' : '🤍'}

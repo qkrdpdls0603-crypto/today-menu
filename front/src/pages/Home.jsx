@@ -133,24 +133,26 @@ export default function Home() {
   const bannerTimer = useRef(null)
 
   useEffect(() => {
-    if (user) {
-      getMyFavorites()
-        .then((data) => {
-          const ids = new Set(data.map(item => item.id));
-          setLikedCafeteriaIds(ids);
-        })
-        .catch(err => console.error('찜 목록 로드 실패:', err));
-    }
-  }, [user]);
+    const favPromise = user
+      ? getMyFavorites().catch(() => [])
+      : Promise.resolve([])
 
-  useEffect(() => {
-    getRestaurants({ cat: '전체', page: 1 })
-      .then((d) => setTrending(d.items?.length ? d.items : SAMPLE_RESTAURANTS))
-      .catch((err) => {
-        console.error('trending 로드 실패:', err)
-        setTrending(SAMPLE_RESTAURANTS)
-      })
-  }, [])
+    Promise.all([
+      getRestaurants({ cat: '전체', page: 1 }),
+      favPromise
+    ]).then(([d, favData]) => {
+      const favIds = new Set((favData || []).map(f => f.id))
+      setLikedCafeteriaIds(favIds)
+      const items = d.items?.length ? d.items : SAMPLE_RESTAURANTS
+      setTrending(items.map(r => ({
+        ...r,
+        is_liked: favIds.has(r.id) || Boolean(r.is_liked)
+      })))
+    }).catch((err) => {
+      console.error('trending 로드 실패:', err)
+      setTrending(SAMPLE_RESTAURANTS)
+    })
+  }, [user])
 
   useEffect(() => {
     bannerTimer.current = setInterval(() => setBannerIdx((i) => (i + 1) % 3), 4500)
@@ -175,9 +177,16 @@ export default function Home() {
 
   const visibleRestaurants = trending.length ? trending : SAMPLE_RESTAURANTS
 
-  const handleCafeteriaLike = (item) => {
+  const handleCafeteriaLike = (r) => {
+    const isLiked = Boolean(r.is_liked) || likedCafeteriaIds.has(r.id)
+    setLikedCafeteriaIds(prev => {
+      const next = new Set(prev)
+      if (isLiked) next.delete(r.id)
+      else next.add(r.id)
+      return next
+    })
     toggleFavoriteAction({
-      id: item.id,
+      id: r.id,
       list: trending,
       setter: setTrending,
       type: 'restaurant'
@@ -299,7 +308,7 @@ export default function Home() {
               <Cafeteria
                 item={r}
                 to={`/menu/${r.id}`}
-                liked={Boolean(r.is_liked)} 
+                liked={Boolean(r.is_liked) || likedCafeteriaIds.has(r.id)} 
                 onToggleLike={() => handleCafeteriaLike(r)}
                 fallbackImage={SAMPLE_RESTAURANTS[index % SAMPLE_RESTAURANTS.length].image}
               />

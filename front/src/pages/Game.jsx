@@ -21,21 +21,22 @@ function Roulette({ menus }) {
   const angleRef = useRef(0)
   const [result, setResult] = useState(null)
   const [isSpinning, setIsSpinning] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [category, setCategory] = useState('전체')
 
-  const slice = (2 * Math.PI) / (items.length || 1)
+  const slice = (2 * Math.PI) / (menus.length || 1)
   const COLORS = ['#E53E3E', '#DD6B20', 'var(--color-accent)', '#38A169', '#3182CE', '#6B46C1', '#D53F8C']
 
   const draw = useCallback((angle) => {
     const canvas = canvasRef.current
-    if (!canvas || items.length === 0) return
+    if (!canvas || menus.length === 0) return
     const ctx = canvas.getContext('2d')
     const cx = canvas.width / 2
     const cy = canvas.height / 2
     const r = cx - 8
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    items.forEach((item, i) => {
+    menus.forEach((item, i) => {
       const start = angle + i * slice
       const end = start + slice
 
@@ -54,7 +55,7 @@ function Roulette({ menus }) {
       ctx.rotate(start + slice / 2)
       ctx.textAlign = 'right'
       ctx.fillStyle = '#fff'
-      ctx.font = `bold ${Math.max(9, 13 - items.length * .1)}px sans-serif`
+      ctx.font = `bold ${Math.max(9, 13 - menus.length * .1)}px sans-serif`
       ctx.shadowColor = 'rgba(0,0,0,.4)'
       ctx.shadowBlur = 2
       const name = item.name.length > 7 ? item.name.slice(0, 7) + '…' : item.name
@@ -83,12 +84,12 @@ function Roulette({ menus }) {
   }, [category]) // draw 말고 category로만
 
   const spin = () => {
-    if (spinning.current || items.length === 0) return
+    if (spinning.current || menus.length === 0) return
     spinning.current = true
     setIsSpinning(true)
     setResult(null)
 
-    const currentItems = [...items]
+    const currentItems = [...menus]
     const currentSlice = slice
 
     const extraSpins = (5 + Math.random() * 5) * 2 * Math.PI
@@ -114,7 +115,7 @@ function Roulette({ menus }) {
         const norm = (((-cur % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI))
         const idx = Math.floor(norm / currentSlice) % currentItems.length
         setResult(currentItems[idx])
-        setResult(items[idx])
+        setResult(menus[idx])
       }
     }
     requestAnimationFrame(animate)
@@ -148,18 +149,18 @@ function Roulette({ menus }) {
         </select>
         {category !== '전체' && (
           <span style={{ marginLeft: 8, fontSize: '.78rem', color: 'var(--text-muted)' }}>
-            {items.length}개 메뉴
+            {menus.length}개 메뉴
           </span>
         )}
       </div>
 
       {/* 룰렛 캔버스 */}
-      {fetching ? (
+      {loading ? (
         <div style={{ padding: 40, color: 'var(--text-muted)', textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: 8 }}>🍽️</div>
           <div style={{ fontWeight: 700 }}>메뉴 불러오는 중...</div>
         </div>
-      ) : items.length === 0 ? (
+      ) : menus.length === 0 ? (
         <div style={{ padding: 40, color: 'var(--text-muted)', textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: 8 }}>😅</div>
           <div style={{ fontWeight: 700 }}>{category} 메뉴가 없습니다</div>
@@ -258,10 +259,10 @@ function TwentyQ({ menus = [] }) {
   const [reveal, setReveal] = useState(false);
 
   // 카테고리별 이모지 매칭 함수 (정의 누락 방지용)
-  const catIcon = (category) => {
-    const icons = { '한식': '🍚', '분식': '🍢', '일식': '🍣', '양식': '🍝', '중식': '🐼', '치킨': '🍗', '카페': '☕' };
-    return icons[category] || '🍔';
-  };
+
+
+
+
 
   useEffect(() => {
     if (menus.length > 0) {

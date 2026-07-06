@@ -264,9 +264,20 @@ export async function toggleFavoriteAction({ id, list, setter, type = 'log' }) {
 
   try {
     // 2. 서버 요청: 타입에 따라 적절한 API 엔드포인트 호출
-    const res = type === 'log' 
-      ? await toggleLike(id)           // 기존 log용 API
-      : await toggleFavorite(id);     // 새 식당용 API
+    // 현재 아이템 찾기
+    const currentItem = list.find(item => {
+      const tid = type === 'log' ? item.log_id : item.restaurant?.id ?? item.id;
+      return tid === id;
+    });
+
+    let res;
+    if (type === 'log') {
+      res = await toggleLike(id);
+    } else if (currentItem?.log_id) {
+      res = await toggleLike(currentItem.log_id);
+    } else {
+      res = await createLikeLog(id);
+    }
 
     // 3. 서버 응답으로 최종 상태 확정
     setter((prev) =>
@@ -280,4 +291,17 @@ export async function toggleFavoriteAction({ id, list, setter, type = 'log' }) {
     setter(previousList); // 에러 발생 시 원상복구
     alert('찜 상태 변경에 실패했습니다.');
   }
+}
+// ── NOTICES ──────────────────────────────────────────────────────────────────
+export async function getNotices() {
+  const { data } = await api.get('/api/notices')
+  return data
+}
+export async function createNotice({ title, content, category }) {
+  const { data } = await api.post('/api/notices', { title, content, category })
+  return data
+}
+export async function deleteNotice(noticeId) {
+  const { data } = await api.delete(`/api/notices/${noticeId}`)
+  return data
 }

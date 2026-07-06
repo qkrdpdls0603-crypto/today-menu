@@ -13,10 +13,11 @@ from flask_jwt_extended import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db
-from app.models import (
+from app.models import (  # noqa
+
     User, Restaurant, Party, PartyMember,
     ChatMessage, RecommendationLog, MannerVote, StatusEnum, RoleEnum,
-    Report, Inquiry, Review, Favorite
+    Report, Inquiry, Review, Favorite, Notice
 )
 
 # ── 블루프린트 ────────────────────────────────────────────────────────────────
@@ -85,7 +86,8 @@ def serialize_restaurant(r, like_count=None):
         'description': r.description,
         'phone':       phone,
         'avg_rating':  r.avg_rating,
-        'like_count':  like_count if like_count is not None else 0,
+        'like_count':     like_count if like_count is not None else 0,
+        'business_hours': getattr(r, 'business_hours', '') or '',
     }
 
 def serialize_party(p, viewer_id=None):
@@ -105,9 +107,7 @@ def serialize_party(p, viewer_id=None):
         'status':       p.status.value,
         'is_member':    any(m.user_id == viewer_id for m in p.members) if viewer_id else False,
         'is_host':      p.host_id == viewer_id if viewer_id else False,
-        'is_host':      p.host_id == viewer_id if viewer_id else False,
         'created_at':   p.created_at.isoformat() if p.created_at else None,
-        # PartyDetail 참여자 목록에서 사용
         'members': [
             {
                 'user': {'user_id': m.user.user_id, 'nickname': m.user.nickname} if m.user else None,
@@ -220,14 +220,14 @@ def token_refresh():
 
 
 @auth_bp.route('/me', methods=['GET'])
-@jwt_required()
+@jwt_login_required
 def me():
     user = User.query.get_or_404(int(get_jwt_identity()))
     return jsonify(serialize_user(user)), 200
 
 
 @auth_bp.route('/me', methods=['PUT'])
-@jwt_required()
+@jwt_login_required
 def update_me():
     user     = User.query.get_or_404(int(get_jwt_identity()))
     data     = request.get_json()
@@ -540,10 +540,19 @@ def join_party(party_id):
 
     user.manner_score = min(50.0, round(user.manner_score + 0.5, 1))
     db.session.commit()
-    
-    
-    return jsonify({'message': '파티에 참여했습니다! 매너온도 +0.5°', 'manner_score': user.manner_score}), 200
 
+    # 파티 방에 새 참여자 알림 소켓 emit
+    try:
+        from app import socketio as _sio
+        _sio.emit('party_member_joined', {
+            'party_id':     party_id,
+            'nickname':     user.nickname,
+            'member_count': len(party.members),
+        }, room=f'party_{party_id}')
+    except Exception:
+        pass
+
+    return jsonify({'message': '파티에 참여했습니다! 매너온도 +0.5°', 'manner_score': user.manner_score}), 200
 
 
 @party_bp.route('/<int:party_id>/chat', methods=['POST'])
@@ -667,6 +676,20 @@ def report_user(party_id):
             return jsonify({'message': '신고가 3회 누적되어 해당 유저가 자동 강퇴되었습니다.', 'kicked': True}), 200
 
     return jsonify({'message': '신고가 접수되었습니다.', 'kicked': False}), 201
+
+
+@party_bp.route('/reports/<int:report_id>/process', methods=['PATCH'])
+@jwt_login_required
+def process_report(report_id):
+    """신고 처리 완료 (관리자 전용)"""
+    user_id = int(get_jwt_identity())
+    user = User.query.get_or_404(user_id)
+    if user.role != RoleEnum.ADMIN:
+        return jsonify({'message': '권한이 없습니다.'}), 403
+    report = Report.query.get_or_404(report_id)
+    report.is_processed = True
+    db.session.commit()
+    return jsonify({'message': '처리 완료되었습니다.'}), 200
 
 @party_bp.route('/admin/reports', methods=['GET'])
 @jwt_login_required
@@ -830,6 +853,64 @@ def admin_delete_user(user_id):
     db.session.commit()
     return jsonify({'message': '탈퇴 처리되었습니다.'}), 200
 
+@api_bp.route('/admin/reviews', methods=['GET'])
+@admin_required
+def admin_get_reviews():
+    """전체 리뷰 목록 (관리자 전용)"""
+    page     = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 15, type=int)
+    q        = request.args.get('q', '')
+
+    query = Review.query.order_by(Review.created_at.desc())
+    if q:
+        query = query.join(Restaurant, Review.restaurant_id == Restaurant.restaurant_id)                     .filter(Restaurant.name.ilike(f'%{q}%'))
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    reviews = []
+    for rv in pagination.items:
+        user = User.query.get(rv.user_id)
+        rest = Restaurant.query.get(rv.restaurant_id)
+        reviews.append({
+            'review_id':   rv.review_id,
+            'rating':      rv.rating,
+            'content':     rv.content,
+            'created_at':  rv.created_at.strftime('%Y-%m-%d') if rv.created_at else '',
+            'user_id':     rv.user_id,
+            'nickname':    user.nickname if user else '탈퇴한 사용자',
+            'restaurant_id': rv.restaurant_id,
+            'restaurant_name': rest.name if rest else '삭제된 식당',
+        })
+    return jsonify({
+        'reviews': reviews,
+        'total':   pagination.total,
+        'pages':   pagination.pages,
+        'page':    page,
+    }), 200
+
+@api_bp.route('/admin/reviews/<int:review_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_review(review_id):
+    """리뷰 삭제 (관리자 전용)"""
+    review = Review.query.get_or_404(review_id)
+    rest_id = review.restaurant_id
+    db.session.delete(review)
+    db.session.commit()
+    # 평균 별점 업데이트
+    try:
+        _update_avg_rating(rest_id)
+        db.session.commit()
+    except: pass
+    return jsonify({'message': '리뷰가 삭제되었습니다.'}), 200
+
+
+
+
+
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'message': '탈퇴 처리되었습니다.'}), 200
+
 
 # ── OpenAI 챗봇 ───────────────────────────────────────────────────────────────
 def _build_user_context(user_id):
@@ -919,7 +1000,11 @@ def chatbot():
     if nearby_str and loc_name:
         nearby_str = f'[{loc_name} 근처] ' + nearby_str
 
-    all_rests = [f"{r.name}({r.category})" for r in Restaurant.query.limit(30).all()]
+    from sqlalchemy import text as _t_chat
+    _chat_rows = db.session.execute(_t_chat(
+        "SELECT name, category FROM restaurants ORDER BY avg_rating DESC LIMIT 30"
+    )).fetchall()
+    all_rests = [f"{row[0]}({row[1]})" for row in _chat_rows]
     all_rests_str = ', '.join(all_rests) or '등록된 식당 없음'
 
     if mode == 'recommend':
@@ -1167,15 +1252,18 @@ A. 마이페이지 최하단 '회원 탈퇴하기' 버튼을 누르세요.
         matched_restaurants = []
         if mode == 'recommend':
             # 전체 식당 중 응답에 이름이 언급된 것 찾기 (최대 3개)
-            all_rests_for_match = Restaurant.query.all()
+            from sqlalchemy import text as _t_match
+            all_rests_for_match = db.session.execute(_t_match(
+                "SELECT restaurant_id, name, category, address, avg_rating FROM restaurants"
+            )).fetchall()
             for r in all_rests_for_match:
-                if r.name in reply:
+                if r[1] in reply:
                     matched_restaurants.append({
-                        'id':       r.restaurant_id,
-                        'name':     r.name,
-                        'category': r.category,
-                        'address':  r.address,
-                        'avg_rating': r.avg_rating,
+                        'id':       r[0],
+                        'name':     r[1],
+                        'category': r[2],
+                        'address':  r[3],
+                        'avg_rating': r[4],
                     })
                     if len(matched_restaurants) >= 3:
                         break
@@ -1440,6 +1528,62 @@ def change_party_status(party_id):
 
 
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NOTICES — 공지사항
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_bp.route('/notices', methods=['GET'])
+def get_notices():
+    """공지사항 목록 조회 (전체)"""
+    notices = Notice.query.order_by(Notice.created_at.desc()).all()
+    return jsonify([n.to_dict() for n in notices]), 200
+
+
+@api_bp.route('/notices', methods=['POST'])
+@jwt_login_required
+def create_notice():
+    """공지사항 작성 (관리자 전용)"""
+    user_id = int(get_jwt_identity())
+    user    = User.query.get_or_404(user_id)
+
+    if user.role.value != 'admin':
+        return jsonify({'message': '관리자만 공지사항을 작성할 수 있습니다.'}), 403
+
+    data    = request.get_json(force=True)
+    title   = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    category = data.get('category', '서비스').strip()
+
+    if not title or not content:
+        return jsonify({'message': '제목과 내용을 입력해주세요.'}), 400
+
+    notice = Notice(
+        title=title,
+        content=content,
+        category=category,
+        author_id=user_id,
+    )
+    db.session.add(notice)
+    db.session.commit()
+    return jsonify({'message': '공지사항이 등록되었습니다.', 'notice': notice.to_dict()}), 201
+
+
+@api_bp.route('/notices/<int:notice_id>', methods=['DELETE'])
+@jwt_login_required
+def delete_notice(notice_id):
+    """공지사항 삭제 (관리자 전용)"""
+    user_id = int(get_jwt_identity())
+    user    = User.query.get_or_404(user_id)
+
+    if user.role.value != 'admin':
+        return jsonify({'message': '관리자만 삭제할 수 있습니다.'}), 403
+
+    notice = Notice.query.get_or_404(notice_id)
+    db.session.delete(notice)
+    db.session.commit()
+    return jsonify({'message': '공지사항이 삭제되었습니다.'}), 200
+
 # ── REVIEW API ─────────────────────────────────────────────────────────────────
 @menu_bp.route('/<int:rest_id>/reviews', methods=['GET'])
 def get_reviews(rest_id):
@@ -1622,11 +1766,11 @@ def answer_inquiry(id):
 # ── FAVORITES API ────────────────────────────────────────────────────────
 
 @api_bp.route('/favorites', methods=['POST'])
-@jwt_required()
+@jwt_login_required
 def toggle_favorite():
-    user_id = get_jwt_identity()
-    data = request.get_json()
-    restaurant_id = data.get('restaurant_id')
+    user_id       = int(get_jwt_identity())
+    data          = request.get_json(force=True)
+    restaurant_id = int(data.get('restaurant_id', 0))
 
     if not restaurant_id:
         return jsonify({"msg": "식당 ID가 필요합니다."}), 400
@@ -1648,18 +1792,23 @@ def toggle_favorite():
         return jsonify({"status": "added", "msg": "찜 목록에 추가되었습니다."}), 201
     
 @api_bp.route('/favorites', methods=['GET'])
-@jwt_required()
+@jwt_login_required
 def get_my_favorites():
-    user_id = get_jwt_identity()
-    favorites = Favorite.query.filter_by(user_id=user_id).all()
-    
-    result = [
-        {
-            "id": f.restaurant.restaurant_id,
-            "name": f.restaurant.name,
-            "category": f.restaurant.category,
-            "avg_rating": f.restaurant.avg_rating,
-            "image": getattr(f.restaurant, 'image', None) 
-        } for f in favorites
-    ]
+    user_id   = int(get_jwt_identity())
+    from sqlalchemy.orm import joinedload
+    favorites = Favorite.query.options(
+        joinedload(Favorite.restaurant)
+    ).filter(Favorite.user_id == user_id).all()
+
+    result = []
+    for f in favorites:
+        if f.restaurant:
+            result.append({
+                'id':         f.restaurant.restaurant_id,
+                'name':       f.restaurant.name,
+                'category':   f.restaurant.category,
+                'avg_rating': f.restaurant.avg_rating,
+                'address':    f.restaurant.address or '',
+                'image':      getattr(f.restaurant, 'image', None),
+            })
     return jsonify(result), 200
