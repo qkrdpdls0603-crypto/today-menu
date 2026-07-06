@@ -270,36 +270,44 @@ export default function PartyDetail() {
 
   return (
     <>
-      <div style={{ padding: '0 0 20px 0' }}>
-        <button
-          type="button"
-          onClick={() => navigate("/party")}
-          className="inline-block py-2 px-5 text-sm font-semibold text-center rounded-[12px] bg-[#FEB95C] text-white hover:bg-[#E8A548] transition-colors shadow-sm"
-        >
-          ← 목록으로
-        </button>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6 items-start">
-        {/* ── 메인 컬럼 ── */}
-        <div>
-          <div className="party-detail-hero" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="mx-auto max-w-[1134px] pb-12">
+        <section className="overflow-hidden rounded-[8px] border border-[var(--border-color)] bg-white shadow-[var(--shadow-sm)]">
+          <div className="relative h-[220px] overflow-hidden sm:h-[260px] lg:h-[300px]">
             <RestaurantImage
+              imageUrl={party.restaurant?.image_url ?? party.restaurant?.image}
               category={party.restaurant?.category}
               name={party.restaurant?.name}
-              height={420}
+              height="100%"
+              iconSize="5rem"
             />
-          </div>
 
+            {/* 뒤로가기 버튼 */}
+            <button
+              type="button"
+              onClick={() => navigate('/menu')}
+              aria-label="목록으로 이동"
+              className="absolute top-4 left-4 z-20 transition hover:scale-160"
+            >
+              <img
+                src="/img/icon/arrow_left.png" alt="뒤로가기"
+                className="h-10 w-10"
+              />
+            </button>
+          </div>
+        </section>
+
+        <div className="mt-8 grid grid-cols-1 gap-6 items-start lg:grid-cols-[300px_1fr]">
+          <main className="order-2 min-w-0">
           <div className="mb-4">
             <div className="flex gap-1.5 items-center flex-wrap mb-2">
               {/* 1. 모집 상태 배지 */}
               <span
                 className={`px-2.5 py-0.5 rounded-[6px] text-[0.75rem] font-extrabold tracking-tight ${isRecruiting
-                    ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400' // 모집 중 (싱그러운 초록색)
-                    : party.status === 'CLOSED'
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' // 마감 (차분한 주황색)
-                      : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' // 완료 (흐린 회색)
+                  ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400' // 모집 중 (싱그러운 초록색)
+                  : party.status === 'CLOSED'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' // 마감 (차분한 주황색)
+                    : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' // 완료 (흐린 회색)
                   }`}
               >
                 {isRecruiting ? '모집 중' : party.status === 'CLOSED' ? '모집 마감' : '파티 완료'}
@@ -448,23 +456,22 @@ export default function PartyDetail() {
               </div>
             </div>
           )}
-        </div>
 
         {/* ── 사이드 컬럼 ── */}
-        <div className="sticky top-[166px]">
+          </main>
+          <aside className="order-1 space-y-4">
           <div className="party-info-box mb-4">
             <div className="text-xs text-gray-500 mb-1">파티 참여</div>
             <div className="flex justify-between items-center mb-4">
               <span className="font-extrabold text-lg">{party.restaurant?.name ?? '식당'}</span>
               <span
-  className={`px-3 py-1 rounded-full text-xs font-bold ${
-    isRecruiting
-      ? "bg-green-100 text-green-700"
-      : "bg-gray-100 text-gray-500"
-  }`}
->
-  {isRecruiting ? "모집 중" : "모집마감"}
-</span>
+                className={`px-3 py-1 rounded-full text-xs font-bold ${isRecruiting
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-500"
+                  }`}
+              >
+                {isRecruiting ? "모집 중" : "모집마감"}
+              </span>
             </div>
 
             {/* 호스트 전용: 파티 종료 */}
@@ -686,6 +693,7 @@ export default function PartyDetail() {
               </div>
             )}
           </div>
+          </aside>
         </div>
       </div>
       {isReportModalOpen && (
