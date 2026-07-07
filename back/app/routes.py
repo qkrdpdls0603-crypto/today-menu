@@ -1230,6 +1230,14 @@ def chatbot():
 
     else:
         # ── Q&A용 DB 데이터 조회 ──────────────────────────────────────────────
+        # 공지사항 (최근 5개 DB에서 조회)
+        from app.models import Notice
+        recent_notices = Notice.query.order_by(Notice.created_at.desc()).limit(5).all()
+        notices_str = '\n'.join([
+            f"- [{n.created_at.strftime('%Y-%m-%d')}] {n.title}: {n.content[:100]}"
+            for n in recent_notices
+        ]) if recent_notices else '현재 등록된 공지사항이 없습니다.'
+
         # 찜 목록 (최대 5개)
         liked_names = ', '.join([
             Restaurant.query.get(l.recommended_restaurant_id).name
@@ -1403,7 +1411,8 @@ A. 마이페이지 최하단 '회원 탈퇴하기' 버튼을 누르세요.
 ■ 공지사항
 - 상단 메뉴 '공지사항' 또는 푸터 → 고객 → 공지사항 클릭
 - 서비스 업데이트, 점검 안내, 이벤트 정보 등 확인 가능
-- 최신 공지: 서비스 정식 오픈 안내, 파티 매칭 기능 업데이트, AI 챗봇 추천 고도화
+- 최신 공지 목록:
+{notices_str}
 
 친절하고 명확한 한국어로 답변하세요.
 사용자 DB 정보를 활용해 개인화된 안내를 제공하세요.
@@ -1423,14 +1432,13 @@ A. 마이페이지 최하단 '회원 탈퇴하기' 버튼을 누르세요.
         )
         reply = response.choices[0].message.content
 
-        # 추천 로그 — 응답에 언급된 식당 1개만 저장 (SQL LIKE로 효율화)
+        # 💡 [코드 고도화] 추천 로그 인메모리 루프 누수 해결을 위한 텍스트 포함 쿼리 적용
         if mode == 'recommend':
-            from sqlalchemy import text as _t_log
-            # reply에서 첫 번째 매칭 식당 찾기 (최대 30개만 확인)
-            top_rests = db.session.execute(_t_log(
-                "SELECT restaurant_id, name FROM restaurants ORDER BY avg_rating DESC LIMIT 200"
-            )).fetchall()
-            for r_id, r_name in top_rests:
+            # Python 레벨에서 식당명 매칭 (SQLite 호환)
+            all_rests_log = Restaurant.query.with_entities(
+                Restaurant.restaurant_id, Restaurant.name
+            ).all()
+            for r_id, r_name in all_rests_log:
                 if r_name and r_name in reply:
                     db.session.add(RecommendationLog(
                         user_id=user_id,
