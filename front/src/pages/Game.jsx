@@ -335,7 +335,7 @@ function WorldCup({ menus }) {
 
   const init = () => {
     const pool = [...menus].sort(() => Math.random() - .5).slice(0, POOL)
-    setBracket(당구); setRound(0); setWinners([]); setChampion(null)
+    setBracket(pool); setRound(0); setWinners([]); setChampion(null)
   }
   useEffect(() => { if (menus.length >= 4) init() }, [menus])
 

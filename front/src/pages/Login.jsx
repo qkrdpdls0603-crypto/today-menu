@@ -259,7 +259,7 @@ export default function Login() {
         <p className="text-center mt-[20px] text-[0.88rem] text-gray-400">
   <button 
     type="button"
-    onClick={() => navigate('/findpassword')} 
+    onClick={() => navigate('/findPassword')} 
     className="text-[var(--color-primary)] font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
   >
     비밀번호 찾기
@@ -267,7 +267,7 @@ export default function Login() {
   {" · "}
   <button 
     type="button"
-    onClick={() => navigate('/findemail')} 
+    onClick={() => navigate('/support')} 
     className="text-[var(--color-primary)] font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
   >
     이메일 찾기
