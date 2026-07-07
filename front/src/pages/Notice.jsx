@@ -60,7 +60,8 @@ export default function Notice() {
       const data = await getNotices()
       // DB 공지 + 기본 공지 합치기
       const dbNotices = (data || []).map(n => ({ ...n, isDB: true }))
-      setNotices([...dbNotices, ...DEFAULT_NOTICES])
+      // DB 공지 있으면 DB만, 없으면 기본 공지 표시
+      setNotices(dbNotices.length > 0 ? dbNotices : DEFAULT_NOTICES)
     } catch {
       setNotices(DEFAULT_NOTICES)
     }
