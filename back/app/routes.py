@@ -827,9 +827,12 @@ def mypage():
     rec_logs   = RecommendationLog.query.filter_by(user_id=user_id)\
                                         .order_by(RecommendationLog.log_id.desc()).limit(10).all()
     liked_logs = RecommendationLog.query.filter_by(user_id=user_id, is_liked=True).all()
+    my_reviews = Review.query.filter_by(user_id=user_id).order_by(Review.created_at.desc()).all()
     return jsonify({
         'user':       serialize_user(user),
         'my_parties': [serialize_party(p, user_id) for p in my_parties],
+        'my_reviews': [rv.to_dict() for rv in my_reviews],
+        'my_reviews': [rv.to_dict() for rv in my_reviews],
         'rec_logs': [
             {
                 'log_id':     r.log_id,
