@@ -150,6 +150,20 @@ useEffect(() => {
       id: String(r.id),
       is_liked: favIds.has(String(r.id))
     })));
+
+    // 실시간 인기 검색어 — 식당 카테고리 카운팅 기반
+    if (rawItems.length > 0) {
+      const countMap = {}
+      rawItems.forEach(r => {
+        if (r.category) countMap[r.category] = (countMap[r.category] || 0) + 1
+        if (r.name) countMap[r.name] = (countMap[r.name] || 0) + 1
+      })
+      const sorted = Object.entries(countMap)
+        .sort((a, b) => b[1] - a[1] || Math.random() - 0.5)
+        .slice(0, 8)
+        .map(([name, count]) => ({ name, count }))
+      setTrendKeywords(sorted)
+    }
   }).catch((err) => {
     console.error('trending 로드 실패:', err);
     setTrending(SAMPLE_RESTAURANTS);
