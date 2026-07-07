@@ -185,13 +185,13 @@ def step_extra_menu_import(csv_path: str):
             for row in reader:
                 # 1. 카테고리 등록 (기존 테이블이 없어도 생성하도록 로직 보완)
                 db.session.execute(
-                    db.text("INSERT OR IGNORE INTO categories (id, name) VALUES (:id, :name)"),
+                    db.text("INSERT INTO categories (id, name) VALUES (:id, :name) ON CONFLICT DO NOTHING"),
                     {'id': row['category_id'], 'name': row['category']}
                 )
                 
                 # 2. 메뉴 등록
                 db.session.execute(
-                    db.text("INSERT INTO menus (menu_name, category_id) VALUES (:name, :cat_id)"),
+                    db.text("INSERT INTO menus (menu_name, category_id) VALUES (:name, :cat_id) ON CONFLICT DO NOTHING"),
                     {'name': row['menu_name'], 'cat_id': row['category_id']}
                 )
                 added += 1
