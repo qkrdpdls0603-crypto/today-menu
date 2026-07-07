@@ -167,17 +167,34 @@ useEffect(() => {
       is_liked: favIds.has(String(r.id))
     })));
 
-    // 실시간 인기 검색어 — 식당 카테고리 카운팅 기반
+    // 실시간 인기 검색어 — localStorage 카운트 + API 카테고리 합산
     if (rawItems.length > 0) {
-      const countMap = {}
+      // 기존 localStorage 카운트 불러오기
+      let savedMap = {}
+      try {
+        const saved = localStorage.getItem('trendKeywords')
+        if (saved) {
+          JSON.parse(saved).forEach(k => { savedMap[k.name] = k.count })
+        }
+      } catch {}
+
+      // API 결과 카테고리 카운팅
+      const apiMap = {}
       rawItems.forEach(r => {
-        if (r.category) countMap[r.category] = (countMap[r.category] || 0) + 1
-        if (r.name) countMap[r.name] = (countMap[r.name] || 0) + 1
+        if (r.category) apiMap[r.category] = (apiMap[r.category] || 0) + 1
       })
-      const sorted = Object.entries(countMap)
+
+      // 합산 — localStorage 카운트 우선 반영
+      const mergedMap = { ...apiMap }
+      Object.entries(savedMap).forEach(([name, cnt]) => {
+        mergedMap[name] = (mergedMap[name] || 0) + cnt
+      })
+
+      const sorted = Object.entries(mergedMap)
         .sort((a, b) => b[1] - a[1] || Math.random() - 0.5)
         .slice(0, 8)
         .map(([name, count]) => ({ name, count }))
+
       setTrendKeywords(sorted)
       try { localStorage.setItem('trendKeywords', JSON.stringify(sorted)) } catch {}
     }
