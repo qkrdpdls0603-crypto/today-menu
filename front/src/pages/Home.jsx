@@ -210,12 +210,18 @@ export default function Home() {
     return () => clearInterval(bannerTimer.current)
   }, [])
 
+  const nearbyRef = useRef(null)
+
   const findNearby = () => {
     if (!navigator.geolocation) return alert('위치 서비스 미지원')
     setLocStatus('loading')
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       const loc = { lat: coords.latitude, lng: coords.longitude }
       setUserLoc(loc)
+      // 내 주변 섹션으로 스크롤
+      setTimeout(() => {
+        nearbyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 300)
       try {
         const data = await getNearby({ lat: loc.lat, lng: loc.lng })
         setNearby(data)
@@ -442,7 +448,7 @@ export default function Home() {
       </section>
 
       {user && (
-        <section className="nearby-section mb-[45px] mt-[11px]">
+        <section ref={nearbyRef} className="nearby-section mb-[45px] mt-[11px]">
           <div className="section-title">
             <span>📍 내 주변 추천</span>
             <div className="nearby-actions">
