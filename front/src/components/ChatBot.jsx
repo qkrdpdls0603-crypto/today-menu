@@ -4,6 +4,70 @@ import { useAuth } from '../App'
 import { sendChat, fetchMe } from '../api/services'
 
 // ── 탭별 빠른 질문 (+ 버튼 팝업으로 이동) ────────────────────────────────────
+// ── 키워드 → 액션 링크 매핑 ─────────────────────────────────────────────────
+const ACTION_LINKS = [
+  {
+    keywords: ['비밀번호', '패스워드', 'password'],
+    link: '/findPassword',
+    label: '🔑 비밀번호 찾기',
+  },
+  {
+    keywords: ['이메일 찾기', '아이디 찾기', '이메일을 잊', '아이디를 잊', '이메일이 기억'],
+    link: '/findid',
+    label: '📧 이메일 찾기',
+  },
+  {
+    keywords: ['프로필 수정', '닉네임 변경', '닉네임 수정', '정보 수정', '취향 변경',
+               '알러지 변경', '알레르기 변경', '주소 변경', '성별 변경'],
+    link: '/mypage/edit',
+    label: '✏️ 프로필 수정',
+  },
+  {
+    keywords: ['마이페이지', '찜 목록', '찜한 목록', '저장 장소', '활동 내역', '내 리뷰'],
+    link: '/mypage',
+    label: '👤 마이페이지',
+  },
+  {
+    keywords: ['회원 탈퇴', '탈퇴'],
+    link: '/mypage',
+    label: '👤 마이페이지 (탈퇴)',
+  },
+  {
+    keywords: ['공지사항'],
+    link: '/notice',
+    label: '📢 공지사항',
+  },
+  {
+    keywords: ['고객센터', '문의', '1:1 문의'],
+    link: '/support',
+    label: '🛎️ 고객센터',
+  },
+  {
+    keywords: ['파티 만들기', '파티 생성', '파티를 만'],
+    link: '/party',
+    label: '👥 파티 목록',
+  },
+  {
+    keywords: ['게임', '룰렛', '월드컵', '스무고개', '뽑기'],
+    link: '/game',
+    label: '🎮 게임',
+  },
+]
+
+// 응답 텍스트에서 관련 링크 추출
+function extractActionLinks(text) {
+  const found = []
+  const lower = text.toLowerCase()
+  for (const item of ACTION_LINKS) {
+    if (item.keywords.some(kw => lower.includes(kw.toLowerCase()))) {
+      if (!found.find(f => f.link === item.link)) {
+        found.push({ link: item.link, label: item.label })
+      }
+    }
+  }
+  return found
+}
+
 const QUICK = {
   recommend: [
     { icon: '🍱', text: '점심 뭐 먹을까요?' },
@@ -138,7 +202,8 @@ export default function ChatBot() {
         messages.filter((m) => m.role === 'user' || m.role === 'assistant'),
         mode, sendLat, sendLng, sendLocIndex,
       )
-      addMsg('assistant', data.reply, { restaurants: data.restaurants ?? [] })
+      const actionLinks = extractActionLinks(data.reply)
+      addMsg('assistant', data.reply, { restaurants: data.restaurants ?? [], actionLinks })
       if (data.manner_score != null) setMannerScore(data.manner_score)
       if (data.wishlist)             setWishlist(data.wishlist)
     } catch (e) {
@@ -351,6 +416,27 @@ export default function ChatBot() {
                   }}>
                   {m.content}
                 </div>
+                {m.role === 'assistant' && m.actionLinks?.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0 4px 4px' }}>
+                    {m.actionLinks.map((al) => (
+                      <Link
+                        key={al.link}
+                        to={al.link}
+                        onClick={() => setOpen(false)}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          padding: '6px 12px', borderRadius: 20,
+                          background: 'var(--color-primary)',
+                          color: '#fff', textDecoration: 'none',
+                          fontSize: '.78rem', fontWeight: 700,
+                          boxShadow: '0 2px 6px rgba(244,108,111,0.3)',
+                        }}
+                      >
+                        {al.label} →
+                      </Link>
+                    ))}
+                  </div>
+                )}
                 {m.role === 'assistant' && m.restaurants?.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '6px 0 8px 4px' }}>
                     {m.restaurants.map((r) => (

@@ -420,25 +420,34 @@ export default function MyPage() {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {(showAllFavorites ? displayLikedLogs : displayLikedLogs.slice(0, FAVORITE_LIMIT)).map((log) => (
-                <Link
-                  to={`/menu/${log.restaurant?.id ?? log.restaurant?.restaurant_id ?? log.recommended_restaurant_id}`}
+                <div
                   className="card rest-card"
                   key={log.log_id ?? log.restaurant?.restaurant_id}
+                  style={{ position: 'relative' }}
                 >
-                  <RestaurantImage
-                    category={log.restaurant?.category}
-                    name={log.restaurant?.name}
-                    style={{ height: 120, width: '100%', objectFit: 'cover', borderRadius: '8px 8px 0 0' }}
-                  />
-                  <div className="card-body">
-                    <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
-                    <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>
-                    <div className="rest-addr" style={{ marginTop: 4 }}>
-                      {(log.restaurant?.address ?? '').slice(0, 20)}
-                      {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
+                  <button
+                    onClick={(e) => { e.preventDefault(); handleLike(log) }}
+                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, background: 'rgba(255,255,255,0.85)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >❤️</button>
+                  <Link
+                    to={`/menu/${log.restaurant?.id ?? log.restaurant?.restaurant_id ?? log.recommended_restaurant_id}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <RestaurantImage
+                      category={log.restaurant?.category}
+                      name={log.restaurant?.name}
+                      style={{ height: 120, width: '100%', objectFit: 'cover', borderRadius: '8px 8px 0 0' }}
+                    />
+                    <div className="card-body">
+                      <span className="badge badge-primary">{log.restaurant?.category ?? '기타'}</span>
+                      <div className="card-title mt-8">{log.restaurant?.name ?? '식당'}</div>
+                      <div className="rest-addr" style={{ marginTop: 4 }}>
+                        {(log.restaurant?.address ?? '').slice(0, 20)}
+                        {(log.restaurant?.address?.length ?? 0) > 20 ? '...' : ''}
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </div>
             {displayLikedLogs.length > FAVORITE_LIMIT && (

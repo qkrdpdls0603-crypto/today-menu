@@ -203,19 +203,25 @@ function UserManager() {
 
 // ── 식당 관리 ────────────────────────────────────────────────────────────────
 function RestaurantManager() {
-  const [rests,   setRests]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [search,  setSearch]  = useState('')
-  const [form,    setForm]    = useState({ name: '', address: '', category: '한식', phone: '', latitude: '', longitude: '' })
+  const [rests,    setRests]    = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [search,   setSearch]   = useState('')
+  const [catFilter, setCatFilter] = useState('전체')
+  const [page,     setPage]     = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const PER_PAGE = 15
+  const [form,    setForm]    = useState({ name: '', address: '', category: '한식', phone: '', latitude: '', longitude: '', business_hours: '' })
   const [showForm, setShowForm] = useState(false)
+  const CATS = ['전체','한식','중식','일식','양식','분식','치킨','피자','카페','술집']
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(catFilter, page) }, [catFilter, page])
 
-  const load = async () => {
+  const load = async (cat = '전체', pg = 1) => {
     setLoading(true)
     try {
-      const { data } = await api.get('/api/menu/?cat=전체&page=1&per_page=50')
+      const { data } = await api.get('/api/menu/', { params: { cat, page: pg, per_page: PER_PAGE } })
       setRests(data.items ?? [])
+      setTotalCount(data.total ?? 0)
     } catch { alert('식당 목록 로드 실패') }
     finally { setLoading(false) }
   }
@@ -228,7 +234,7 @@ function RestaurantManager() {
         latitude:  form.latitude  ? parseFloat(form.latitude)  : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
       })
-      setForm({ name: '', address: '', category: '한식', phone: '', latitude: '', longitude: '' })
+      setForm({ name: '', address: '', category: '한식', phone: '', latitude: '', longitude: '', business_hours: '' })
       setShowForm(false)
       await load()
       alert('식당이 등록되었습니다.')
@@ -244,18 +250,23 @@ function RestaurantManager() {
     } catch (e) { alert(e.response?.data?.message ?? '삭제 실패') }
   }
 
-  const filtered = rests.filter(r =>
-    r.name?.includes(search) || r.category?.includes(search)
-  )
+  const filtered = search
+    ? rests.filter(r => r.name?.includes(search))
+    : rests
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontWeight: 900 }}>식당 목록 ({rests.length}개)</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input placeholder="식당명/카테고리 검색" value={search}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <h2 style={{ fontWeight: 900 }}>식당 목록 ({totalCount.toLocaleString()}개)</h2>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* 카테고리 드롭다운 */}
+          <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1) }}
+            className="form-control" style={{ width: 110, fontSize: '.85rem' }}>
+            {CATS.map(c => <option key={c}>{c}</option>)}
+          </select>
+          <input placeholder="식당명 검색" value={search}
             onChange={e => setSearch(e.target.value)}
-            className="form-control" style={{ width: 200, fontSize: '.85rem' }} />
+            className="form-control" style={{ width: 180, fontSize: '.85rem' }} />
           <button onClick={() => setShowForm(!showForm)}
             style={{ padding: '8px 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '.85rem' }}>
             {showForm ? '취소' : '+ 식당 등록'}
@@ -284,6 +295,10 @@ function RestaurantManager() {
             <input className="form-control" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">영업시간</label>
+            <input className="form-control" placeholder="예: 09:00~22:00" value={form.business_hours} onChange={e => setForm({...form, business_hours: e.target.value})} />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">위도</label>
             <input className="form-control" type="number" step="any" value={form.latitude} onChange={e => setForm({...form, latitude: e.target.value})} />
           </div>
@@ -308,7 +323,7 @@ function RestaurantManager() {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 50).map(r => (
+              {filtered.map(r => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{r.id}</td>
                   <td style={{ padding: '10px 12px', fontWeight: 700 }}>{r.name}</td>
@@ -325,7 +340,16 @@ function RestaurantManager() {
               ))}
             </tbody>
           </table>
-          {filtered.length > 50 && <div style={{ textAlign: 'center', padding: 12, color: 'var(--text-muted)', fontSize: '.85rem' }}>상위 50개 표시 중 (전체 {filtered.length}개)</div>}
+          {/* 페이지네이션 */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+            <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}
+              style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border-color)', cursor: 'pointer', fontWeight: 700, opacity: page === 1 ? .4 : 1 }}>◀</button>
+            <span style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>
+              {page} / {Math.ceil(totalCount / PER_PAGE)} 페이지 ({totalCount.toLocaleString()}개)
+            </span>
+            <button onClick={() => setPage(p => p+1)} disabled={page >= Math.ceil(totalCount / PER_PAGE)}
+              style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border-color)', cursor: 'pointer', fontWeight: 700, opacity: page >= Math.ceil(totalCount / PER_PAGE) ? .4 : 1 }}>▶</button>
+          </div>
         </div>
       )}
     </div>
@@ -353,7 +377,7 @@ function InquiryManager() {
   const handleAnswer = async (id) => {
     if (!reply.trim()) { alert('답변 내용을 입력하세요.'); return }
     try {
-      await api.post(`/api/support/inquiries/${id}/answer`, { answer: reply })
+      await api.patch(`/api/support/inquiries/${id}/answer`, { answer: reply })
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, answer: reply } : i))
       setReply('')
       setSelected(null)
@@ -785,4 +809,3 @@ function ReviewManager() {
     </div>
   )
 }
-

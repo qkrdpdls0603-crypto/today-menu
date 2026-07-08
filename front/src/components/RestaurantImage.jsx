@@ -1,14 +1,14 @@
 import { useState } from "react";
 
 const CAT_ICON = {
-  한식: "🍚",
-  일식: "🍣",
-  중식: "🥟",
-  양식: "🥩",
-  분식: "🍜",
-  치킨: "🍗",
-  카페: "☕",
-  술집: "🍺",
+  한식: './img/category/korean.png',
+  일식: './img/category/japanese.webp',
+  중식: './img/category/chinese.webp',
+  양식: './img/category/steak.webp',
+  분식: './img/category/snack.webp',
+  치킨: './img/category/chicken.webp',
+  카페: './img/category/coffee.webp',
+  술집: './img/category/beer.webp'
 };
 
 // ── 카테고리별 이미지 풀 ───────────────────────────────────────────────────
@@ -74,8 +74,17 @@ export default function RestaurantImage({
           onError={() => setImgError(true)}
         />
       ) : (
-        <span style={{ fontSize: iconSize }}>
-          {CAT_ICON[category] ?? "🍴"}
+        <span style={{ fontSize: iconSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {CAT_ICON[category] ? (
+            <img
+                src={src}
+                alt={name}
+                className="h-full w-full object-contain"
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
+          ) : (
+            "🍴"
+          )}
         </span>
       )}
     </div>

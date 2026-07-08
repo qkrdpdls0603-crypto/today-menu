@@ -164,6 +164,7 @@ export default function Home() {
       setTrending(rawItems.map(r => ({
         ...r,
         id: String(r.id),
+        image: r.image || r.image_url || '',
         is_liked: favIds.has(String(r.id))
       })));
 
@@ -395,7 +396,6 @@ export default function Home() {
                 to={`/menu/${r.id}`}
                 liked={Boolean(r.is_liked) || likedCafeteriaIds.has(r.id)}
                 onToggleLike={() => handleCafeteriaLike(r)}
-                fallbackImage={SAMPLE_RESTAURANTS[index % SAMPLE_RESTAURANTS.length].image}
               />
 
               <span

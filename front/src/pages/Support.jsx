@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../App';
 import { useLocation } from 'react-router-dom';
 import api from '../api/axiosInstance';
 import { TokenStore } from '../api/axiosInstance';
@@ -6,8 +7,8 @@ import { TokenStore } from '../api/axiosInstance';
 export default function Support() {
   const location = useLocation();
 
-  // 0. 사용자 권한 상태 (테스트용)
-  const [userRole, setUserRole] = useState("user");
+  const { user } = useAuth();
+  const userRole = user?.role?.toLowerCase() || 'user';
 
   // 1. UI 조작용 전역 상태 (탭, 검색어, 모달)
   // 마이페이지 고객문의 버튼에서 state.defaultTab='inquiry' 로 진입 시 자동 선택
@@ -184,12 +185,6 @@ export default function Support() {
       // 🌟 bg-[#FDFAD1]를 제거하고 bg-transparent를 넣어 투명하게 만듭니다.
       <div className="bg-transparent min-h-screen text-gray-800 pb-20 font-sans antialiased">
 
-        {/* 🛠️ 시연 및 테스트용 권한 탭 스위처 */}
-        <div className="fixed bottom-4 right-4 bg-white p-3 rounded-[16px] shadow-xl border border-[#FEB95C] z-50 flex gap-2 text-xs">
-          <span className="font-bold self-center text-gray-700">시연 권한:</span>
-          <button onClick={() => { setUserRole("user"); setOpenInquiryId(null); }} className={`px-3 py-1 rounded-[8px] font-bold ${userRole === "user" ? "bg-[#F46C6F] text-white" : "bg-gray-100 text-gray-500"}`}>일반회원</button>
-          <button onClick={() => { setUserRole("admin"); setOpenInquiryId(null); }} className={`px-3 py-1 rounded-[8px] font-bold ${userRole === "admin" ? "bg-gray-950 text-white" : "bg-gray-100 text-gray-500"}`}>관리자</button>
-        </div>
 
         {/* 1. 타이틀 영역 */}
         <div className="bg-transparent py-8 text-center border-b border-[#FEB95C]/40">
@@ -509,4 +504,3 @@ export default function Support() {
       </div>
     );
   }
-
