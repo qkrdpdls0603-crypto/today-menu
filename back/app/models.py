@@ -72,6 +72,12 @@ class Party(db.Model):
     kicked_users = db.relationship('User', secondary=party_kicked_users, backref='kicked_from_parties')
     reports = db.relationship('Report', backref='party', cascade='all, delete-orphan')
 
+    def complete_party(self):
+        """파티와 파티원 상태를 COMPLETED로 변경"""
+        self.status = StatusEnum.COMPLETED
+        for member in self.members:
+            member.status = 'COMPLETED'
+
 
 
 class PartyMember(db.Model):
@@ -82,6 +88,7 @@ class PartyMember(db.Model):
     user_id   = db.Column(db.Integer, db.ForeignKey('users.user_id'),    nullable=False)
     is_host   = db.Column(db.Boolean, default=False)
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='JOINED')
 
 class ChatMessage(db.Model):
     __tablename__ = 'chat_messages'

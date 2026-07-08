@@ -58,6 +58,19 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def check_and_complete_expired_parties():
+    now = datetime.now()
+    expired_parties = Party.query.filter(
+        Party.status == StatusEnum.RECRUITING,
+        Party.meeting_time < now
+    ).all()
+
+    for party in expired_parties:
+        party.complete_party()
+    
+    db.session.commit()
+
+
 # ── 직렬화 헬퍼 ───────────────────────────────────────────────────────────────
 def serialize_user(u):
     prefs = u.preferences or {}
@@ -633,6 +646,8 @@ def random_menus():
 # ══════════════════════════════════════════════════════════════════════════════
 @party_bp.route('/', methods=['GET'])
 def list_parties():
+    check_and_complete_expired_parties()
+
     # 1. 일단 시간 지나고 정원 찬 파티를 일괄 정리 (Data Cleansing)
     now = datetime.now() 
     

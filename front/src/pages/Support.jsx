@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../App';
 import { useLocation } from 'react-router-dom';
 import api from '../api/axiosInstance';
@@ -63,6 +63,11 @@ export default function Support() {
     setOpenInquiryId(openInquiryId === id ? null : id);
     setAdminReplyText("");
   };
+
+  const filteredFaqs = faqData.filter(item =>
+    item.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.a.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // ✍️ 일반 회원 질문 생성 (모달 내부에서 작동)
   // ✍️ 일반 회원 질문 생성 (수정된 버전)
@@ -164,22 +169,36 @@ export default function Support() {
     };    
 
     // 🔍 [필터링 및 페이징] 실시간 내부 검색 반영
-    const filteredFaqs = faqData.filter(item =>
-      item.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.a.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // 1. useMemo를 사용해 데이터 계산 로직을 캐싱합니다. (이게 핵심입니다!)
+    const filteredInquiries = useMemo(() => {
+      return inquiries.filter(item =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.content.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }, [inquiries, searchQuery]); // inquiries나 검색어가 바뀔 때만 다시 계산
 
-    const filteredInquiries = inquiries.filter(item =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.content.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // 2. 페이지네이션 변수
+    const itemsPerPage = 5;
+    const totalPages = Math.max(1, Math.ceil(filteredInquiries.length / itemsPerPage));
 
-    // 🔢 [페이지네이션 핵심 수식] 페이지당 1개 슬라이싱 연산
-    const itemsPerPage = 1;
-    const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage) || 1;
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentInquiries = filteredInquiries.slice(indexOfFirstItem, indexOfLastItem);
+    // 3. 페이지네이션 데이터 슬라이싱
+    const currentInquiries = useMemo(() => {
+      const indexOfLastItem = currentPage * itemsPerPage;
+      const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+      return filteredInquiries.slice(indexOfFirstItem, indexOfLastItem);
+    }, [filteredInquiries, currentPage]);
+
+    // 4. 페이지 범위 자동 조정 (유효하지 않은 페이지 접근 방지)
+    useEffect(() => {
+      if (currentPage > totalPages) {
+        setCurrentPage(totalPages);
+      }
+    }, [totalPages, currentPage]);
+
+    // 5. 검색어 변경 시에만 페이지 1로 초기화 (중요: filteredInquiries.length를 의존성으로 쓰지 마세요!)
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [searchQuery]);
 
     return (
       // 🌟 bg-[#FDFAD1]를 제거하고 bg-transparent를 넣어 투명하게 만듭니다.

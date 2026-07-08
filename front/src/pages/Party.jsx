@@ -54,6 +54,9 @@ export default function Party() {
   const joinedParties = allParties.filter((p) => {
     if (!user) return false
 
+    const isCompleted = p.status === 'COMPLETED' || p.status === 'CANCELLED';
+    if (isCompleted) return false;
+
     return (
       p.is_member ||
       p.isMember ||
@@ -297,8 +300,12 @@ export default function Party() {
                   </div>
 
                   <div className="min-w-2 flex-1">
-                    <span className="mb-1 inline-flex rounded-full bg-[#FFF1F1] px-2 py-0.5 text-[10px] font-black text-[#F46C6F]">
-                      참여 중
+                    <span className={`mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      p.status === 'COMPLETED' 
+                        ? 'bg-gray-100 text-gray-500' 
+                        : 'bg-[#FFF1F1] text-[#F46C6F]'
+                    }`}>
+                      {p.status === 'COMPLETED' ? '참여 종료' : '참여 중'}
                     </span>
 
                     <h3 className="truncate text-sm font-black text-gray-900">

@@ -6,8 +6,6 @@ import api from '../api/axiosInstance.js'
 import { useAuth } from '../App'
 import RestaurantImage from '../components/RestaurantImage'
 
-const CAT_ICON = { 한식: '🍚', 일식: '🍣', 중식: '🥟', 양식: '🥩', 분식: '🍜', 치킨: '🍗', 피자: '🍕', 카페: '☕' }
-
 export default function PartyDetail() {
   const { partyId } = useParams()
   const { user } = useAuth()
@@ -30,6 +28,7 @@ export default function PartyDetail() {
   const [reportReason, setReportReason] = useState('');
 
   const isRecruiting = party ? party.status === 'RECRUITING' : false;
+  const isCompleted = party ? party.status === 'COMPLETED' : false;
   const isMember = party ? party.is_member : false;
   const pct = party ? Math.min(Math.round((party.member_count / party.max_people) * 100), 100) : 0;
   const isHost = user && party ? party.host?.user_id === user.user_id : false;
@@ -205,8 +204,13 @@ export default function PartyDetail() {
 
   const handleStatusChange = async (newStatus) => {
     if (!window.confirm(newStatus === 'CLOSED' ? '모집을 마감하시겠습니까?' : '모집을 재개하시겠습니까?')) return
-    try { await api.patch(`/api/party/${partyId}/status`, { status: newStatus }); const d = await getParty(partyId); setParty(d) }
-    catch (e) { alert(e.response?.data?.message || '상태 변경 실패') }
+    try { 
+      await api.patch(`/api/party/${partyId}/close`, { status: newStatus }); 
+      const d = await getParty(partyId); 
+      setParty(d); 
+    } catch (e) { 
+      alert(e.response?.data?.message || '상태 변경 실패'); 
+    }
   }
 
   const handleJoin = async () => {
@@ -322,7 +326,7 @@ export default function PartyDetail() {
                 {/* 2. 참여 중 배지 (내가 속한 파티) */}
                 {isMember && (
                   <span className="px-2.5 py-0.5 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 rounded-[6px] text-[0.75rem] font-extrabold tracking-tight flex items-center gap-0.5">
-                    <span>✅</span> 참여 중
+                    {party.status === 'COMPLETED' ? '✅ 참여 종료' : '✅ 참여 중'}
                   </span>
                 )}
               </div>
