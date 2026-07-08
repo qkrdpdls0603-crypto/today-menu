@@ -1,14 +1,14 @@
 import { useState } from "react";
 
 const CAT_ICON = {
-  한식: "🍚",
-  일식: "🍣",
-  중식: "🥟",
-  양식: "🥩",
-  분식: "🍜",
-  치킨: "🍗",
-  카페: "☕",
-  술집: "🍺",
+  한식: './img/category/korean.png',
+  일식: './img/category/japanese.webp',
+  중식: './img/category/chinese.webp',
+  양식: './img/category/steak.webp',
+  분식: './img/category/snack.webp',
+  치킨: './img/category/chicken.webp',
+  카페: './img/category/coffee.webp',
+  술집: './img/category/beer.webp'
 };
 
 // ── 카테고리별 이미지 풀 ───────────────────────────────────────────────────
@@ -23,7 +23,14 @@ const CAT_IMAGES = {
     ...Array.from({ length: 8 },  (_, i) => `/img/food_category/중식/중식${i + 1}.png`),
     ...Array.from({ length: 7 },  (_, i) => `/img/food_category/중식/중식${i + 9}.jpg`),
   ],
-  양식: Array.from({ length: 20 }, (_, i) => `/img/food_category/양식/양식${i + 1}.jpg`),
+  양식: [
+    ...Array.from({ length: 15 }, (_, i) => `/img/food_category/양식/양식${i + 1}.jpg`),
+    '/img/food_category/양식/양식피자16.jpg',
+    '/img/food_category/양식/양식피자17.jpg',
+    '/img/food_category/양식/양식피자18.jpg',
+    '/img/food_category/양식/양식피자19.jpg',
+    '/img/food_category/양식/양식피자20.jpg',
+  ],
   분식: Array.from({ length: 15 }, (_, i) => `/img/food_category/분식/분식${i + 1}.jpg`),
   치킨: Array.from({ length: 15 }, (_, i) => `/img/food_category/치킨/치킨${i + 1}.jpg`),
   카페: Array.from({ length: 15 }, (_, i) => `/img/food_category/카페/카페${i + 1}.jpg`),
@@ -74,8 +81,17 @@ export default function RestaurantImage({
           onError={() => setImgError(true)}
         />
       ) : (
-        <span style={{ fontSize: iconSize }}>
-          {CAT_ICON[category] ?? "🍴"}
+        <span style={{ fontSize: iconSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {CAT_ICON[category] ? (
+            <img
+                src={src}
+                alt={name}
+                className="h-full w-full object-contain"
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
+          ) : (
+            "🍴"
+          )}
         </span>
       )}
     </div>
