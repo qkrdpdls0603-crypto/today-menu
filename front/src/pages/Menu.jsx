@@ -28,10 +28,6 @@ const CATEGORIES = [
 ]
 const adBannerClass =
   'w-full overflow-hidden rounded-[12px] bg-white max-md:h-[70px]'
-const adBannerLinkClass = 'block h-full w-full'
-const adBannerImageClass =
-  'h-full w-full object-contain object-center'
-
 
 export default function Menu() {
   const { user } = useAuth()
@@ -115,37 +111,24 @@ export default function Menu() {
 
       {/* 카테고리 필터 */}
       <div className="mt-8 mb-13 flex flex-wrap items-center gap-7">
-        <span className="shrink-0 text-[0.95rem] font-bold">
-          카테고리
-        </span>
-
+        <span className="shrink-0 text-[0.95rem] font-bold">카테고리</span>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((c) => (
             <button
               key={c}
-              className={`
-                cursor-pointer whitespace-nowrap
-                rounded-full
-                bg-[var(--color-white)]
-                px-3 py-2
-                text-[0.85rem]
-                font-bold
-                text-black
-                shadow-sm
-                flex items-center justify-center gap-0
-                transition-all duration-150
-                hover:bg-[var(--color-accent)] hover:shadow-md
-                ${activeCat === c ? "scale-105 shadow-md ring-2 ring-white/60" : ""}
-              `}
+              className="cursor-pointer whitespace-nowrap rounded-full px-3 py-2 text-[0.85rem] font-bold text-black shadow-sm flex items-center justify-center gap-0 transition-all duration-150 hover:shadow-md"
+              style={activeCat === c
+                ? { background: '#FFEE7F', transform: 'scale(1.05)', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }
+                : { background: 'var(--bg-white)' }
+              }
               onClick={() => go({ cat: c, page: 1, q: "" })}
             >
-              {/* 홈에서 사용한 방식과 동일하게 img 태그 삽입 */}
               {CAT_ICON[c] && (
-                <img 
-                  src={CAT_ICON[c]} 
-                  alt={c} 
-                  className="h-6 w-8 object-contain mr-0.5" // 버튼 크기에 맞게 조절
-                  onError={(e) => { e.target.style.display = 'none' }} 
+                <img
+                  src={CAT_ICON[c]}
+                  alt={c}
+                  className="h-6 w-8 object-contain mr-0.5"
+                  onError={(e) => { e.target.style.display = 'none' }}
                 />
               )}
               {c}
@@ -196,44 +179,37 @@ export default function Menu() {
       </div>
 
       {/* 그리드카드 */}
-      {
-        loading ? (
-          <div className="grid-4">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="card h-[220px] bg-[var(--bg-surface)] animate-pulse-1500"
-              />
-            ))}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon"></div>
-            <p>{q ? `"${q}" 검색 결과가 없습니다.` : '등록된 식당이 없습니다.'}</p>
-            {q && (
-              <button className="btn btn-secondary btn-sm 
-              mt-[12px]"
-                onClick={() => { setSearchInput(''); go({ q: '', page: 1 }) }}>
-                전체보기
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-x-[15px] gap-y-[30px] max-lg:grid-cols-2 max-[540px]:grid-cols-2" id="menuGrid">
-            {items.map((r) => (
-              <RestaurantCard
-                key={r.id}
-                r={r}
-                to={`/menu/${r.id}`}
-                showPartyBadge={!!user}
-                liked={Boolean(r.is_liked)}
-                onToggleLike={handleRestaurantLike}
-              />
-            ))}
-          </div>
-        )
-      }
-
+      {loading ? (
+        <div className="grid-4">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="card h-[220px] bg-[var(--bg-surface)] animate-pulse-1500" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon"></div>
+          <p>{q ? `"${q}" 검색 결과가 없습니다.` : '등록된 식당이 없습니다.'}</p>
+          {q && (
+            <button className="btn btn-secondary btn-sm mt-[12px]"
+              onClick={() => { setSearchInput(''); go({ q: '', page: 1 }) }}>
+              전체보기
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-x-[15px] gap-y-[30px] max-lg:grid-cols-2 max-[540px]:grid-cols-2" id="menuGrid">
+          {items.map((r) => (
+            <RestaurantCard
+              key={r.id}
+              r={r}
+              to={`/menu/${r.id}`}
+              showPartyBadge={!!user}
+              liked={Boolean(r.is_liked)}
+              onToggleLike={handleRestaurantLike}
+            />
+          ))}
+        </div>
+      )}
 
       {/* 페이지네이션 */}
       {pagination.pages > 1 && (

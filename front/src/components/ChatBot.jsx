@@ -143,10 +143,10 @@ export default function ChatBot() {
   }, [plusOpen])
 
   useEffect(() => {
-  const handleOpen = () => setOpen(true);
-  window.addEventListener('open-chatbot', handleOpen);
-  return () => window.removeEventListener('open-chatbot', handleOpen);
-}, []);
+    const handleOpen = () => setOpen(true);
+    window.addEventListener('open-chatbot', handleOpen);
+    return () => window.removeEventListener('open-chatbot', handleOpen);
+  }, []);
 
   useEffect(() => {
     if (!locPicker) return
@@ -238,7 +238,8 @@ export default function ChatBot() {
   return (
     <>
       {/* ── FAB ── */}
-      <button className="chat-fab" onClick={() => {
+      {/* 아래 클래스명 뒤에 chatbot-toggle-btn 을 추가하여 메인 화면의 코드와 연동되도록 수정했습니다. */}
+      <button className="chat-fab chatbot-toggle-btn" onClick={() => {
         if (open) setHistories((h) => ({ ...h, [mode]: messages }))
         setOpen((o) => !o)
       }} aria-label="AI 챗봇">

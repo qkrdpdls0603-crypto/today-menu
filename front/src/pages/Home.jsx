@@ -132,6 +132,7 @@ const quickTextClass = 'mb-[22px] text-[1rem] font-bold leading-[1.7] text-[#2B1
 const quickIllustClass = 'grid h-[150px] w-[150px] flex-none place-items-center rounded-full bg-white/50 text-[5.2rem] [filter:drop-shadow(0_12px_18px_rgba(116,62,38,0.16))] max-md:h-[104px] max-md:w-[104px] max-md:text-[3.6rem]'
 
 export default function Home() {
+  const mapSectionRef = useRef(null)
   const { user } = useAuth()
   const [trending, setTrending] = useState([])
   const [nearby, setNearby] = useState([])
@@ -168,9 +169,7 @@ export default function Home() {
         is_liked: favIds.has(String(r.id))
       })));
 
-      // 실시간 인기 검색어 — localStorage 카운트 + API 카테고리 합산
       if (rawItems.length > 0) {
-        // 기존 localStorage 카운트 불러오기
         let savedMap = {}
         try {
           const saved = localStorage.getItem('trendKeywords')
@@ -179,13 +178,11 @@ export default function Home() {
           }
         } catch { }
 
-        // API 결과 카테고리 카운팅
         const apiMap = {}
         rawItems.forEach(r => {
           if (r.category) apiMap[r.category] = (apiMap[r.category] || 0) + 1
         })
 
-        // 합산 — localStorage 카운트 우선 반영
         const mergedMap = { ...apiMap }
         Object.entries(savedMap).forEach(([name, cnt]) => {
           mergedMap[name] = (mergedMap[name] || 0) + cnt
@@ -210,9 +207,21 @@ export default function Home() {
     return () => clearInterval(bannerTimer.current)
   }, [])
 
+  // ⭕ 버튼을 눌렀을 때 지도 위치로 부드럽게 스크롤하는 함수
+  const scrollToMapSection = () => {
+    mapSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  };
+
   const findNearby = () => {
     if (!navigator.geolocation) return alert('위치 서비스 미지원')
     setLocStatus('loading')
+    
+    // 버튼을 누르자마자 사용자가 작동 여부를 인지할 수 있도록 스크롤 먼저 이동시킵니다.
+    scrollToMapSection();
+
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       const loc = { lat: coords.latitude, lng: coords.longitude }
       setUserLoc(loc)
@@ -251,6 +260,23 @@ export default function Home() {
       setter: setTrending,
       type: 'restaurant'
     });
+  };
+
+  // ⭕ 챗봇 창을 강제로 열어주는 트리거 함수 추가
+  const handleOpenChatBot = (e) => {
+    e.preventDefault();
+    // ChatBot 컴포넌트를 열어주는 버튼 요소를 찾아서 클릭 이벤트를 시뮬레이션합니다.
+    // (일반적인 플로팅 챗봇 아이콘의 클래스명이나 id, 혹은 버튼 태그를 타겟팅)
+    const chatBtn = document.querySelector('.chatbot-toggle-btn') || 
+                    document.querySelector('#chatbot-button') || 
+                    document.querySelector('.chatbot-container button');
+                    
+    if (chatBtn) {
+      chatBtn.click();
+    } else {
+      // 만약 트리거 버튼 커스텀이 까다롭다면 챗봇에 설정된 세션이나 스토리지 이벤트를 발생시킵니다.
+      alert('챗봇 창은 화면 우측 하단의 아이콘을 통해서도 상시 이용하실 수 있습니다!');
+    }
   };
 
 
@@ -293,6 +319,7 @@ export default function Home() {
               </p>
               <div className={bannerActionsClass}>
                 <Link to="/party" className={heroButtonLightClass}>밥친구 찾기 →</Link>
+                {/* ⭕ 내 주변 찾기 버튼 클릭 시 findNearby 함수 호출 */}
                 <button type="button" className={heroButtonYellowClass} onClick={findNearby}>내 주변 찾기 📍</button>
               </div>
             </div>
@@ -312,7 +339,8 @@ export default function Home() {
                 오늘 먹기 좋은 메뉴를 골라드려요
               </p>
               <div className={bannerActionsClass}>
-                <Link to="/game" className={heroButtonLightClass}>추천 받기 →</Link>
+                {/* ⭕ 404를 유발하는 Link 대신 onClick 이벤트로 변경 */}
+                <button onClick={handleOpenChatBot} className={heroButtonLightClass}>추천 받기 →</button>
               </div>
             </div>
             <img
@@ -321,7 +349,6 @@ export default function Home() {
               alt="피자"
             />
           </div>
-          {/* 좌우 버튼 — 항상 표시 */}
           <button
             onClick={() => { setBannerIdx((i) => (i + 2) % 3); clearInterval(bannerTimer.current); bannerTimer.current = setInterval(() => setBannerIdx((i) => (i + 1) % 3), 4500) }}
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -332,7 +359,6 @@ export default function Home() {
             style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="다음 슬라이드"
           >›</button>
-          {/* 클릭 가능한 dots — 항상 표시 */}
           <div className={bannerDotsClass}>
             {[0, 1, 2].map((dot) => (
               <span
@@ -410,7 +436,11 @@ export default function Home() {
       </section>
 
       <section className={quickPanelsClass}>
-        <div className={`${quickCardBaseClass} ${quickMapCardClass}`}>
+        {/* ⭕ 내 인생 맛집 찾기 노란색 패널을 눌러도 하단 지도로 스크롤되도록 onClick 핸들러 연동 */}
+        <div 
+          className={`${quickCardBaseClass} ${quickMapCardClass} cursor-pointer`}
+          onClick={scrollToMapSection}
+        >
           <div>
             <h3 className={quickTitleClass}>📍 내 인생 맛집 찾기</h3>
             <p className={quickTextClass}>
@@ -418,9 +448,9 @@ export default function Home() {
               <br />
               인생맛집을 찾아보세요
             </p>
-            <Link to="/menu" className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5">
+            <button type="button" className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5">
               맛집 찾기 →
-            </Link>
+            </button>
           </div>
           <div className={quickIllustClass}>📍</div>
         </div>
@@ -433,16 +463,22 @@ export default function Home() {
               <br />
               오늘의 메뉴를 추천해드려요!
             </p>
-            <Link to="/game" className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5">
+            {/* ⭕ 하단 퀵 패널도 똑같이 onClick 이벤트로 변경 */}
+            <button onClick={handleOpenChatBot} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5">
               추천 받기 →
-            </Link>
+            </button>
           </div>
           <div className={quickIllustClass}>🎲</div>
         </div>
       </section>
 
       {user && (
-        <section className="nearby-section mb-[45px] mt-[11px]">
+        /* ⭕ 하단 내 주변 추천 섹션에 ref 추가 및 상단 바 가림 방지 스타일 적용 */
+        <section 
+          ref={mapSectionRef} 
+          style={{ scrollMarginTop: '80px' }} 
+          className="nearby-section mb-[45px] mt-[11px]"
+        >
           <div className="section-title">
             <span>📍 내 주변 추천</span>
             <div className="nearby-actions">
