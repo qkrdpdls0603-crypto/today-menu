@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getRestaurants } from '../api/services'
 import { useAuth } from '../App'
 import RestaurantCard from '../components/RestaurantCard';
 import RandomBanner from '../components/RandomBanner'
+import { getRestaurants, createLikeLog, toggleLike } from '../api/services'
 
 const CAT_ICON = {
   한식: './img/category/korean.png',
@@ -43,13 +43,30 @@ export default function Menu() {
   const [loading, setLoading] = useState(false)
   const [searchInput, setSearchInput] = useState(q)
 
-  const handleRestaurantLike = (item) => {
-    setItems((prev) =>
-      prev.map((r) =>
-        r.id === item.id ? { ...r, is_liked: !r.is_liked } : r
+  const handleRestaurantLike = async (item) => {
+  if (!user) { alert('로그인이 필요합니다.'); return }
+  try {
+    if (item.log_id) {
+      // 기존 로그 있으면 토글
+      const res = await toggleLike(item.log_id)
+      setItems((prev) =>
+        prev.map((r) =>
+          r.id === item.id ? { ...r, is_liked: res.liked } : r
+        )
       )
-    )
+    } else {
+      // 로그 없으면 새로 생성 (찜 추가)
+      const res = await createLikeLog(item.id)
+      setItems((prev) =>
+        prev.map((r) =>
+          r.id === item.id ? { ...r, is_liked: true, log_id: res.log_id } : r
+        )
+      )
+    }
+  } catch (err) {
+    console.error('찜하기 실패:', err)
   }
+}
 
   const fetchData = useCallback(() => {
     setLoading(true)

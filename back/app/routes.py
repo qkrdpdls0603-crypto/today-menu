@@ -89,7 +89,7 @@ def serialize_user(u):
         'saved_locations': prefs.get('saved_locations', []),
     }
 
-def serialize_restaurant(r, like_count=None):
+def serialize_restaurant(r, like_count=None, is_liked=False, log_id=None):
     phone = getattr(r, 'phone', None) or r.description or ''
     return {
         'id':          r.restaurant_id,
@@ -101,9 +101,11 @@ def serialize_restaurant(r, like_count=None):
         'description': r.description,
         'phone':       phone,
         'avg_rating':  r.avg_rating,
-        'like_count':     like_count if like_count is not None else 0,
+        'like_count':  like_count if like_count is not None else 0,
         'business_hours': getattr(r, 'business_hours', '') or '',
         'image': getattr(r, 'image_url', None),
+        'is_liked':    is_liked,  # 🔥 추가: 프론트엔드 연동 필드
+        'log_id':      log_id,    # 🔥 추가: 프론트엔드 연동 필드
     }
 
 def serialize_party(p, viewer_id=None):
@@ -569,8 +571,45 @@ def list_restaurants():
     else:
         query = query.order_by(Restaurant.avg_rating.desc())
     pagination = query.paginate(page=page, per_page=12, error_out=False)
+    
+    # ── 🔥 [여기서부터 수정] 로그인 유저의 찜(추천로그) 상태 조회 코드 추가 ──
+    viewer_id = None
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            from flask_jwt_extended import decode_token
+            token_data = decode_token(auth_header.split(' ')[1])
+            viewer_id = int(token_data['sub'])
+        except Exception:
+            pass
+
+    serialized_items = []
+    for r in pagination.items:
+        # 기본값 설정
+        is_liked = False
+        log_id = None
+        
+        # 유저가 로그인 상태라면 찜 내역 탐색
+        if viewer_id:
+            log = RecommendationLog.query.filter_by(
+                user_id=viewer_id, 
+                recommended_restaurant_id=r.restaurant_id
+            ).first()
+            if log:
+                is_liked = getattr(log, 'is_liked', True)
+                log_id = log.id
+
+        # 찜 목록 개수 집계 (기존 메커니즘 유지용 카운트 계산)
+        count = db.session.query(func.count(RecommendationLog.log_id))\
+            .filter(RecommendationLog.recommended_restaurant_id == r.restaurant_id, 
+                    RecommendationLog.is_liked == True).scalar() or 0
+
+        # 확장된 형태로 직렬화 후 배열에 보관
+        serialized_items.append(serialize_restaurant(r, like_count=count, is_liked=is_liked, log_id=log_id))
+    # ── ────────────────────────────────────────────────────────────────── ──
+
     return jsonify({
-        'items':    [serialize_restaurant(r) for r in pagination.items],
+        'items':    serialized_items, # 가공된 리스트 전달
         'total':    pagination.total,
         'pages':    pagination.pages,
         'page':     pagination.page,
