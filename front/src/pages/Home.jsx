@@ -200,7 +200,7 @@ export default function Home() {
     }, () => setLocStatus('error'))
   }
 
-  const visibleRestaurants = trending.length ? trending : SAMPLE_RESTAURANTS
+  const visibleRestaurants = trending.length ? trending : []
 
   const handleKeywordClick = (keyword) => {
     setTrendKeywords(prev => {
