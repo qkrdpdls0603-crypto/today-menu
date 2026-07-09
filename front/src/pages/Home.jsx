@@ -73,17 +73,17 @@ const mainBannerClass = 'relative h-[400px] overflow-hidden rounded-[10px] shado
 const slideBaseClass = 'absolute left-0 top-0 z-[1] flex h-full w-full items-center px-8 py-9 text-white opacity-0 transition-opacity duration-[600ms] ease-in-out sm:px-8 md:px-9 lg:px-8 xl:px-10'
 const slideActiveClass = 'z-[2] opacity-100'
 const slideBackgrounds = [
-  '[background:radial-gradient(circle_at_83%_35%,rgba(255,255,255,0.28),transparent_29%),linear-gradient(135deg,#FF6970,var(--color-primary))]',
+  '[background:radial-gradient(circle_at_83%_35%,rgba(255,255,255,0.28),transparent_29%),linear-gradient(135deg,#FF8A72,var(--color-accent))]',
   '[background:radial-gradient(circle_at_85%_25%,rgba(255,255,255,0.28),transparent_24%),linear-gradient(135deg,#FEB95C,#F46C6F)]',
   '[background:radial-gradient(circle_at_85%_25%,rgba(255,238,127,0.35),transparent_25%),linear-gradient(135deg,#F1B8AE,#F46C6F)]',
 ]
 const bannerCopyClass = 'relative z-[2] max-w-[470px] pb-2 mb-0'
-const bannerTitleClass = 'mb-4 text-[clamp(2rem,3.4vw,2.55rem)] font-black leading-[1.05] text-white'
+const bannerTitleClass = 'ml-5 mb-4 text-[clamp(2rem,3.4vw,2.55rem)] font-black leading-[1.05] text-white'
 const bannerTitleAccentClass = 'mx-0.5 inline-flex translate-y-0.5'
-const bannerTextClass = 'mb-9 text-[1.08rem] font-extrabold leading-[1.65]'
+const bannerTextClass = 'ml-5 mb-9 text-[1.08rem] font-extrabold leading-[1.65]'
 const bannerActionsClass = 'flex flex-wrap gap-[5px]'
-const heroButtonLightClass = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5'
-const heroButtonYellowClass = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(135deg,var(--color-secondary),var(--color-accent))] px-6 text-[0.94rem] font-black text-[#4B2D07] shadow-[0_10px_18px_rgba(254,185,92,0.25)] transition-transform hover:-translate-y-0.5'
+const heroButtonLightClass = 'ml-5 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-5 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5'
+const heroButtonYellowClass = 'ml-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(135deg,var(--color-secondary),var(--color-accent))] px-5 text-[0.94rem] font-black text-[#4B2D07] shadow-[0_10px_18px_rgba(254,185,92,0.25)] transition-transform hover:-translate-y-0.5'
 
 const bannerFoodClass = 'absolute right-0 top-0 bottom-0 z-[1] h-full w-[52%] rounded-l-[999px] rounded-r-none object-cover object-center shadow-[0_18px_30px_rgba(85,34,26,0.2)] max-md:hidden xl:w-[51%]'
 
@@ -118,7 +118,7 @@ const cafeteriaGridClass =
   'grid grid-cols-4 gap-[15px] max-lg:grid-cols-2 max-[540px]:grid-cols-2'
 
 const rankBadgeBaseClass =
-  'absolute left-0 top-0 grid h-[52px] w-[52px] place-items-center bg-[var(--color-primary)] text-[1.35rem] font-black text-white'
+  'absolute left-0 top-0 z-10 grid h-[52px] w-[52px] place-items-center bg-[var(--color-primary)] text-[1.35rem] font-black text-white transition-transform duration-200 group-hover:-translate-y-1'
 
 const rankBadgeAccentClass =
   'bg-[var(--color-accent)]'
@@ -132,7 +132,7 @@ const quickTextClass = 'mb-[22px] text-[1rem] font-bold leading-[1.7] text-[#2B1
 const quickIllustClass = 'grid h-[150px] w-[150px] flex-none place-items-center rounded-full bg-white/50 text-[5.2rem] [filter:drop-shadow(0_12px_18px_rgba(116,62,38,0.16))] max-md:h-[104px] max-md:w-[104px] max-md:text-[3.6rem]'
 
 export default function Home() {
-  const mapSectionRef = useRef(null)
+  const nearbyRef = useRef(null)
   const { user } = useAuth()
   const [trending, setTrending] = useState([])
   const [nearby, setNearby] = useState([])
@@ -210,19 +210,21 @@ export default function Home() {
 
   // ⭕ 버튼을 눌렀을 때 지도 위치로 부드럽게 스크롤하는 함수
   const scrollToMapSection = () => {
-    mapSectionRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
-  };
+  if (!nearbyRef.current) return
 
-  const nearbyRef = useRef(null)
+  const offset = 140
+  const top = nearbyRef.current.getBoundingClientRect().top + window.scrollY - offset
 
+  window.scrollTo({
+    top,
+    behavior: 'smooth',
+  })
+}
 
   const findNearby = () => {
     if (!navigator.geolocation) return alert('위치 서비스 미지원')
     setLocStatus('loading')
-    
+
     // 버튼을 누르자마자 사용자가 작동 여부를 인지할 수 있도록 스크롤 먼저 이동시킵니다.
     scrollToMapSection();
 
@@ -275,10 +277,10 @@ export default function Home() {
     e.preventDefault();
     // ChatBot 컴포넌트를 열어주는 버튼 요소를 찾아서 클릭 이벤트를 시뮬레이션합니다.
     // (일반적인 플로팅 챗봇 아이콘의 클래스명이나 id, 혹은 버튼 태그를 타겟팅)
-    const chatBtn = document.querySelector('.chatbot-toggle-btn') || 
-                    document.querySelector('#chatbot-button') || 
-                    document.querySelector('.chatbot-container button');
-                    
+    const chatBtn = document.querySelector('.chatbot-toggle-btn') ||
+      document.querySelector('#chatbot-button') ||
+      document.querySelector('.chatbot-container button');
+
     if (chatBtn) {
       chatBtn.click();
     } else {
@@ -365,12 +367,12 @@ export default function Home() {
           </div>
           <button
             onClick={() => { setBannerIdx((i) => (i + 2) % 3); clearInterval(bannerTimer.current); bannerTimer.current = setInterval(() => setBannerIdx((i) => (i + 1) % 3), 4500) }}
-            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.20)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="이전 슬라이드"
           >‹</button>
           <button
             onClick={() => { setBannerIdx((i) => (i + 1) % 3); clearInterval(bannerTimer.current); bannerTimer.current = setInterval(() => setBannerIdx((i) => (i + 1) % 3), 4500) }}
-            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.20)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="다음 슬라이드"
           >›</button>
           <div className={bannerDotsClass}>
@@ -430,7 +432,7 @@ export default function Home() {
 
         <div className={cafeteriaGridClass}>
           {visibleRestaurants.slice(0, 4).map((r, index) => (
-            <div className="relative" key={r.id}>
+            <div className="group relative transition-transform duration-200 hover:-translate-y-1" key={r.id}>
               <Cafeteria
                 item={r}
                 to={`/menu/${r.id}`}
@@ -451,7 +453,7 @@ export default function Home() {
 
       <section className={quickPanelsClass}>
         {/* ⭕ 내 인생 맛집 찾기 노란색 패널을 눌러도 하단 지도로 스크롤되도록 onClick 핸들러 연동 */}
-        <div 
+        <div
           className={`${quickCardBaseClass} ${quickMapCardClass} cursor-pointer`}
           onClick={scrollToMapSection}
         >
@@ -462,7 +464,8 @@ export default function Home() {
               <br />
               인생맛집을 찾아보세요
             </p>
-            <button type="button" className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5">
+            
+            <button type="button" onClick={scrollToMapSection} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] bg-white px-6 text-[0.94rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5">
               맛집 찾기 →
             </button>
           </div>
