@@ -49,9 +49,12 @@ export default function Header() {
             className="inline-flex justify-self-start items-center gap-2 text-[1.72rem] font-black tracking-[-0.04em] text-[#0E0C0B] max-md:text-[1.35rem]"
             onClick={() => setMobileOpen(false)}
           >
-            <img src="/img/icon/logo.png" alt="오늘 뭐먹지?" style={{ height: 38, width: 38, objectFit: 'contain' }}
-              onError={(e) => { e.target.style.display = 'none' }} />
-            <span>오늘 뭐먹지?</span>
+            <img
+              src="/img/icon/logo_title.png"
+              alt="오늘 뭐먹지?"
+              className="w-40  object-contain"
+              onError={(e) => { e.target.style.display = 'none' }}
+            />
           </Link>
 
           <div className="max-md:hidden">
@@ -97,21 +100,21 @@ export default function Header() {
               <>
                 <PartyNotification />
                 <button onClick={handleLogout} className={`${headerIconLink} group mr-1 max-md:hidden`}>
-                <img src="/img/icon/logout.png" className="h-[28px] w-[28px] object-contain" alt="logout" onError={(e) => { e.target.style.display="none" }} />
-                <span className="whitespace-nowrap text-[0.65rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">
-                로그아웃
-                </span>
-              </button>
+                  <img src="/img/icon/logout.png" className="h-[28px] w-[28px] object-contain" alt="logout" onError={(e) => { e.target.style.display = "none" }} />
+                  <span className="whitespace-nowrap text-[0.65rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">
+                    로그아웃
+                  </span>
+                </button>
               </>
             ) : (
               <>
                 <Link to="/login" className={`${headerIconLink} group mr-1 max-md:hidden`}>
-                  <img src="/img/icon/login.png" onError={(e) => { e.target.style.display="none" }} 
-                  className="h-[28px] w-[28px] object-contain" 
-                  alt="login" />
+                  <img src="/img/icon/login.png" onError={(e) => { e.target.style.display = "none" }}
+                    className="h-[28px] w-[28px] object-contain"
+                    alt="login" />
                   <span className="whitespace-nowrap text-[0.65rem] font-extrabold leading-none text-[#7D6A63] transition-colors group-hover:text-[var(--color-primary)]">
-                로그인
-              </span>
+                    로그인
+                  </span>
                 </Link>
               </>
             )}
