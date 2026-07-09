@@ -19,14 +19,12 @@ export default function Footer() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <img
-              src="/img/icon/logo.png"
+              src="/img/icon/logo_title.png"
               alt="오늘 뭐먹지?"
-              style={{ height: 40, width: 40, objectFit: 'contain' }}
+              className="w-40 object-contain"
               onError={(e) => { e.target.style.display = 'none' }}
             />
-            <strong style={{ fontSize: '1.18rem', fontWeight: 900, color: 'var(--text-primary)' }}>
-              오늘 뭐먹지?
-            </strong>
+
           </div>
           <p className={footerTextClass}>AI가 추천하는<br />오늘의 베스트 맛집</p>
           <div className={socialRowClass}>
