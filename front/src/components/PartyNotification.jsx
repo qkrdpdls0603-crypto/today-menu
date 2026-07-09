@@ -1,7 +1,8 @@
 // front/src/components/PartyNotification.jsx
-// 파티 알림 — 참여자 생겼을 때 + 시간 임박 알림
-import { useState, useEffect, useRef } from 'react'
+// 파티 알림 - 참여/나가기 실시간 알림 + 시간 임박 알림
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import io from 'socket.io-client'
 import { useAuth } from '../App'
 import { getMyPage } from '../api/services'
 
@@ -11,15 +12,102 @@ export default function PartyNotification() {
   const [show, setShow] = useState(false)
   const prevPartiesRef = useRef([])
   const timerRef = useRef(null)
+  const socketRef = useRef(null)
+  const notificationIdsRef = useRef(new Set())
 
   const headerIconLink = 'inline-flex min-w-[70px] flex-col items-center justify-center gap-[5px] border-0 bg-transparent text-[0.78rem] font-black leading-none text-[#161211]'
 
+  const addNotifications = (notes) => {
+    const filtered = notes.filter((note) => {
+      if (notificationIdsRef.current.has(note.id)) return false
+      notificationIdsRef.current.add(note.id)
+      return true
+    })
+
+    if (filtered.length === 0) return
+    setNotifications((prev) => [...filtered, ...prev].slice(0, 10))
+    filtered.forEach((note) => showBrowserNotification(note.message))
+  }
+
+  const removeNotification = (id) => {
+    notificationIdsRef.current.delete(id)
+    setNotifications((prev) => prev.filter((note) => note.id !== id))
+  }
+
+  const clearNotifications = () => {
+    notificationIdsRef.current.clear()
+    setNotifications([])
+  }
+
+  const subscribePartyNotifications = async () => {
+    if (!user || !socketRef.current) return
+    try {
+      socketRef.current.emit('subscribe_my_party_notifications', {
+        user_id: user.user_id,
+      })
+    } catch {}
+  }
+
   useEffect(() => {
     if (!user) return
+
     checkNotifications()
-    // 1분마다 체크
     timerRef.current = setInterval(checkNotifications, 60000)
+
     return () => clearInterval(timerRef.current)
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+
+    const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+    })
+    socketRef.current = socket
+
+    const handlePartyMemberEvent = (type) => (data) => {
+      const partyTitle = data.party_title || '파티'
+      const nickname = data.nickname || '알 수 없음'
+      const isMe = Number(data.user_id) === Number(user.user_id)
+      const actionText = type === 'join' ? '참여했습니다' : '나갔습니다'
+      const message = isMe
+        ? `"${partyTitle}" 파티에 내가 ${actionText}.`
+        : `"${partyTitle}" 파티에서 ${nickname}님이 ${actionText}.`
+      const occurredAt = data.occurred_at || new Date().toISOString()
+
+      addNotifications([{
+        id: `${type}-${data.party_id}-${data.user_id}-${occurredAt}`,
+        type,
+        party_id: data.party_id,
+        message,
+        time: new Date(occurredAt),
+      }])
+    }
+
+    const handleRefreshSubscription = () => subscribePartyNotifications()
+    const handleLocalNotification = (event) => {
+      if (!event.detail) return
+      addNotifications([event.detail])
+    }
+
+    socket.on('connect', subscribePartyNotifications)
+    socket.on('party_member_joined', handlePartyMemberEvent('join'))
+    socket.on('party_member_left', handlePartyMemberEvent('leave'))
+    window.addEventListener('party-membership-changed', handleRefreshSubscription)
+    window.addEventListener('party-local-notification', handleLocalNotification)
+    subscribePartyNotifications()
+
+    return () => {
+      window.removeEventListener('party-membership-changed', handleRefreshSubscription)
+      window.removeEventListener('party-local-notification', handleLocalNotification)
+      socket.off('connect', subscribePartyNotifications)
+      socket.off('party_member_joined')
+      socket.off('party_member_left')
+      socket.disconnect()
+      socketRef.current = null
+    }
   }, [user])
 
   const checkNotifications = async () => {
@@ -35,22 +123,7 @@ export default function PartyNotification() {
         return
       }
 
-      parties.forEach(party => {
-        // 이전 상태와 비교
-        const prev = prevPartiesRef.current.find(p => p.party_id === party.party_id)
-
-        // 1. 새 참여자 알림
-        if (prev && party.member_count > prev.member_count) {
-          newNotes.push({
-            id: `join-${party.party_id}-${Date.now()}`,
-            type: 'join',
-            message: `"${party.title}" 파티에 새 참여자가 생겼습니다!`,
-            party_id: party.party_id,
-            time: new Date(),
-          })
-        }
-
-        // 2. 시간 임박 알림 — 10분 전, 5분 전 각 1번씩
+      parties.forEach((party) => {
         if (party.meeting_time) {
           const meetingTime = new Date(party.meeting_time)
           const now = new Date()
@@ -58,10 +131,10 @@ export default function PartyNotification() {
 
           // 10분 전 알림 (9~11분 사이)
           if (diffMin > 9 && diffMin <= 11) {
-            const alreadyNotified = notifications.find(n => n.id === `soon10-${party.party_id}`)
-            if (!alreadyNotified) {
+            const id = `soon10-${party.party_id}`
+            if (!notificationIdsRef.current.has(id)) {
               newNotes.push({
-                id: `soon10-${party.party_id}`,
+                id,
                 type: 'soon',
                 message: `"${party.title}" 파티가 10분 후 시작됩니다! ⏰`,
                 party_id: party.party_id,
@@ -72,10 +145,10 @@ export default function PartyNotification() {
 
           // 5분 전 알림 (4~6분 사이)
           if (diffMin > 4 && diffMin <= 6) {
-            const alreadyNotified = notifications.find(n => n.id === `soon5-${party.party_id}`)
-            if (!alreadyNotified) {
+            const id = `soon5-${party.party_id}`
+            if (!notificationIdsRef.current.has(id)) {
               newNotes.push({
-                id: `soon5-${party.party_id}`,
+                id,
                 type: 'soon',
                 message: `"${party.title}" 파티가 5분 후 시작됩니다! 🍽️`,
                 party_id: party.party_id,
@@ -87,26 +160,27 @@ export default function PartyNotification() {
       })
 
       prevPartiesRef.current = parties
-
-      if (newNotes.length > 0) {
-        setNotifications(prev => [...newNotes, ...prev].slice(0, 10))
-        // 브라우저 알림
-        newNotes.forEach(n => showBrowserNotification(n.message))
-      }
+      addNotifications(newNotes)
     } catch {}
   }
 
   const showBrowserNotification = (message) => {
-    if (!("Notification" in window)) return
-    if (Notification.permission === "granted") {
-      new Notification("🍽️ 오늘 뭐먹지?", { body: message, icon: "/img/icon/logo.png" })
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then(perm => {
-        if (perm === "granted") {
-          new Notification("🍽️ 오늘 뭐먹지?", { body: message, icon: "/img/icon/logo.png" })
+    if (!('Notification' in window)) return
+    if (Notification.permission === 'granted') {
+      new Notification('🍽️ 오늘 뭐먹지?', { body: message, icon: '/img/icon/logo.png' })
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then((perm) => {
+        if (perm === 'granted') {
+          new Notification('🍽️ 오늘 뭐먹지?', { body: message, icon: '/img/icon/logo.png' })
         }
       })
     }
+  }
+
+  const getNotificationIcon = (type) => {
+    if (type === 'join') return '👋'
+    if (type === 'leave') return '🚪'
+    return '⏰'
   }
 
   const unreadCount = notifications.length
@@ -115,10 +189,10 @@ export default function PartyNotification() {
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* 알림 벨 버튼 */}
-<button onClick={() => setShow(!show)} className={`${headerIconLink} group mr-1 max-md:hidden`}>
+      {/* 알림 버튼 */}
+      <button onClick={() => setShow(!show)} className={`${headerIconLink} group mr-1 max-md:hidden`}>
         <div style={{ position: 'relative' }}>
-          <img src="/img/icon/alarm.png" className="h-[28px] w-[28px] object-contain" alt="alarm" onError={(e) => { e.target.style.display="none" }} />
+          <img src="/img/icon/alarm.png" className="h-[28px] w-[28px] object-contain" alt="alarm" onError={(e) => { e.target.style.display = 'none' }} />
           {unreadCount > 0 && (
             <span style={{
               position: 'absolute', top: 0, right: 0,
@@ -148,7 +222,7 @@ export default function PartyNotification() {
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 900, fontSize: '.92rem', display: 'flex', alignItems: 'center', gap: 6 }}><img src="/img/icon/alarm.png" alt="알림" style={{ width: 16, height: 16 }} />파티 알림</span>
               {notifications.length > 0 && (
-                <button onClick={() => setNotifications([])}
+                <button onClick={clearNotifications}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
                   전체 지우기
                 </button>
@@ -160,23 +234,43 @@ export default function PartyNotification() {
                 새 알림이 없습니다.
               </div>
             ) : (
-              notifications.map(n => (
-                <Link key={n.id} to={`/party/${n.party_id}`}
-                  onClick={() => setShow(false)}
-                  style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid var(--border-color)', textDecoration: 'none', background: 'var(--bg-white)' }}
-                >
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '1.1rem' }}>{n.type === 'join' ? '👋' : '⏰'}</span>
-                    <div>
-                      <div style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
-                        {n.message}
-                      </div>
-                      <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
-                        {n.time.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+              notifications.map((n) => (
+                <div key={n.id} style={{ position: 'relative', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-white)' }}>
+                  <Link to={`/party/${n.party_id}`}
+                    onClick={() => setShow(false)}
+                    style={{ display: 'block', padding: '12px 42px 12px 16px', textDecoration: 'none' }}
+                  >
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '1.1rem' }}>{getNotificationIcon(n.type)}</span>
+                      <div>
+                        <div style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                          {n.message}
+                        </div>
+                        <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
+                          {n.time.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      removeNotification(n.id)
+                    }}
+                    aria-label="알림 삭제"
+                    style={{
+                      position: 'absolute', top: 10, right: 10,
+                      width: 24, height: 24, borderRadius: '50%',
+                      border: 'none', background: 'transparent',
+                      color: 'var(--text-muted)', cursor: 'pointer',
+                      fontSize: '.95rem', fontWeight: 900, lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
               ))
             )}
           </div>

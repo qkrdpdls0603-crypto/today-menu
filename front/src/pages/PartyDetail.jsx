@@ -99,6 +99,10 @@ export default function PartyDetail() {
       setParty(prev => prev ? { ...prev, member_count: data.member_count } : prev)
     })
 
+    socket.current.on('party_member_left', (data) => {
+      setParty(prev => prev ? { ...prev, member_count: data.member_count } : prev)
+    })
+
     return () => {
       socket.current.emit('leave', { room_id: partyId, username: user.nickname })
       socket.current?.disconnect()
@@ -151,7 +155,21 @@ export default function PartyDetail() {
 
   const handleLeaveParty = async () => {
     if (!window.confirm('정말로 파티에서 퇴장하시겠습니까?')) return
-    try { await api.delete(`/api/party/${partyId}/leave`); alert('파티에서 퇴장했습니다.'); navigate('/party') }
+    try {
+      await api.delete(`/api/party/${partyId}/leave`)
+      window.dispatchEvent(new CustomEvent('party-local-notification', {
+        detail: {
+          id: `leave-${partyId}-${user.user_id}-${Date.now()}`,
+          type: 'leave',
+          party_id: partyId,
+          message: `"${party.title}" 파티에서 내가 나갔습니다.`,
+          time: new Date(),
+        },
+      }))
+      window.dispatchEvent(new Event('party-membership-changed'))
+      alert('파티에서 퇴장했습니다.')
+      navigate('/party')
+    }
     catch (e) { alert(e.response?.data?.message || '퇴장 오류') }
   }
 
@@ -219,6 +237,16 @@ export default function PartyDetail() {
       const d = await getParty(partyId);
       setParty(d);
       setMessages(d.messages ?? []);
+      window.dispatchEvent(new CustomEvent('party-local-notification', {
+        detail: {
+          id: `join-${partyId}-${user.user_id}-${Date.now()}`,
+          type: 'join',
+          party_id: partyId,
+          message: `"${d.title}" 파티에 내가 참여했습니다.`,
+          time: new Date(),
+        },
+      }));
+      window.dispatchEvent(new Event('party-membership-changed'));
 
       setActiveTab('chat');
       alert("파티에 참여하였습니다! 채팅을 시작해보세요.");

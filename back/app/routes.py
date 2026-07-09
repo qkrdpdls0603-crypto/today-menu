@@ -775,11 +775,20 @@ def join_party(party_id):
     # 파티 방에 새 참여자 알림 소켓 emit
     try:
         from app import socketio as _sio
-        _sio.emit('party_member_joined', {
+        occurred_at = datetime.utcnow().isoformat()
+        payload = {
             'party_id':     party_id,
+            'party_title':  party.title,
+            'user_id':      user.user_id,
             'nickname':     user.nickname,
             'member_count': len(party.members),
-        }, room=f'party_{party_id}')
+            'occurred_at':  occurred_at,
+        }
+        _sio.emit('party_member_joined', payload, room=f'party_{party_id}')
+        party_members = PartyMember.query.filter_by(party_id=party_id).all()
+        for party_member in party_members:
+            if party_member.user_id != user_id:
+                _sio.emit('party_member_joined', payload, room=f'user_{party_member.user_id}')
     except Exception:
         pass
 
@@ -842,8 +851,8 @@ def kick_member(party_id, target_user_id):
     if target_user and target_user not in party.kicked_users:
         party.kicked_users.append(target_user)
 
-    db.session.flush() 
-    
+    db.session.flush()
+
     if len(party.members) == 0:
         db.session.delete(party)
         db.session.commit()
@@ -1692,6 +1701,7 @@ def handle_join(data):
         return 
 
     join_room(room_id)
+    join_room(f'party_{room_id}')
 
     # 기존 메시지 내역 전송
     try:
@@ -1716,6 +1726,54 @@ def handle_join(data):
     socket_emit('system_message',
         {'message': f'{username}님이 입장했습니다.', 'created_at': ''},
         to=room_id)
+
+
+@socketio.on('subscribe_party_notifications')
+def handle_subscribe_party_notifications(data):
+    """참여 중인 파티들의 알림 방 구독"""
+    user_id = data.get('user_id')
+    party_ids = data.get('party_ids') or []
+    subscribed = []
+
+    if not user_id:
+        socket_emit('error', {'message': '사용자 정보가 없습니다.'})
+        return
+
+    for party_id in party_ids:
+        try:
+            party_id = int(party_id)
+            if is_user_in_party(int(user_id), party_id):
+                join_room(f'party_{party_id}')
+                subscribed.append(party_id)
+        except (TypeError, ValueError):
+            continue
+
+    socket_emit('party_notification_subscribed', {'party_ids': subscribed})
+
+
+@socketio.on('subscribe_my_party_notifications')
+def handle_subscribe_my_party_notifications(data):
+    """사용자가 참여 중인 모든 파티 알림 방 구독"""
+    user_id = data.get('user_id')
+    subscribed = []
+
+    if not user_id:
+        socket_emit('error', {'message': '사용자 정보가 없습니다.'})
+        return
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        socket_emit('error', {'message': '사용자 정보가 올바르지 않습니다.'})
+        return
+
+    party_members = PartyMember.query.filter_by(user_id=user_id).all()
+    for member in party_members:
+        join_room(f'party_{member.party_id}')
+        subscribed.append(member.party_id)
+
+    join_room(f'user_{user_id}')
+    socket_emit('party_notification_subscribed', {'party_ids': subscribed})
 
 
 @socketio.on('leave')
@@ -1787,15 +1845,49 @@ def leave_party(party_id):
     if member.is_host:
         return jsonify({'message': '호스트는 탈퇴할 수 없습니다. 파티를 종료하거나 취소해주세요.'}), 403
 
+    user = User.query.get(user_id)
+    party_title = party.title
     db.session.delete(member)
     db.session.flush()
+    member_count = PartyMember.query.filter_by(party_id=party_id).count()
 
-    if len(party.members) == 0:
+    if member_count == 0:
         db.session.delete(party)
         db.session.commit()
+        try:
+            from app import socketio as _sio
+            occurred_at = datetime.utcnow().isoformat()
+            payload = {
+                'party_id':     party_id,
+                'party_title':  party_title,
+                'user_id':      user_id,
+                'nickname':     user.nickname if user else '알 수 없음',
+                'member_count': member_count,
+                'occurred_at':  occurred_at,
+            }
+            _sio.emit('party_member_left', payload, room=f'party_{party_id}')
+        except Exception:
+            pass
         return jsonify({'message': '파티를 탈퇴했습니다. 마지막 멤버이므로 파티가 자동 삭제되었습니다.'}), 200
         
     db.session.commit()
+    try:
+        from app import socketio as _sio
+        occurred_at = datetime.utcnow().isoformat()
+        payload = {
+            'party_id':     party_id,
+            'party_title':  party_title,
+            'user_id':      user_id,
+            'nickname':     user.nickname if user else '알 수 없음',
+            'member_count': member_count,
+            'occurred_at':  occurred_at,
+        }
+        _sio.emit('party_member_left', payload, room=f'party_{party_id}')
+        party_members = PartyMember.query.filter_by(party_id=party_id).all()
+        for party_member in party_members:
+            _sio.emit('party_member_left', payload, room=f'user_{party_member.user_id}')
+    except Exception:
+        pass
     return jsonify({'message': '파티에서 탈퇴했습니다.'}), 200
 
 
