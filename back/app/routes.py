@@ -18,7 +18,7 @@ from app.models import (  # noqa
 
     User, Restaurant, Party, PartyMember,
     ChatMessage, RecommendationLog, MannerVote, StatusEnum, RoleEnum,
-    Report, Inquiry, Review, Favorite, Notice, Menu, Category, SearchLog, SavedLocation
+    Report, Inquiry, Review, Favorite, Notice, Menu, Category, SavedLocation, SearchLog, SavedLocation
 )
 
 # ── 블루프린트 ────────────────────────────────────────────────────────────────
@@ -1083,10 +1083,12 @@ def mypage():
             }
             for r in rec_logs
         ],
-        'liked_logs': [    # 찜한 전체 목록 추가
+        'liked_logs': [
             {
-                'log_id': r.log_id,
-                'restaurant': serialize_restaurant(r.restaurant) if r.restaurant else None
+                'log_id':     r.log_id,
+                'is_liked':   True,
+                'restaurant': serialize_restaurant(r.restaurant) if r.restaurant else None,
+                'recommended_restaurant_id': r.recommended_restaurant_id,
             } for r in liked_logs
         ],
     })
@@ -2303,6 +2305,45 @@ def answer_inquiry(id):
     db.session.commit()
 
     return jsonify(inquiry.to_dict()), 200
+
+# ── SAVED-LOCATIONS API ──────────────────────────────────────────────────────
+
+@api_bp.route('/saved-locations', methods=['GET'])
+@jwt_login_required
+def get_saved_locations():
+    user_id = int(get_jwt_identity())
+    locs = SavedLocation.query.filter_by(user_id=user_id).all()
+    return jsonify([loc.to_dict() for loc in locs]), 200
+
+@api_bp.route('/saved-locations', methods=['POST'])
+@jwt_login_required
+def add_saved_location():
+    user_id = int(get_jwt_identity())
+    data    = request.get_json(force=True)
+    name    = data.get('name', '').strip()
+    address = data.get('address', '').strip()
+
+    if not name or not address:
+        return jsonify({'message': 'name과 address가 필요합니다.'}), 400
+
+    # 최대 3개 제한
+    count = SavedLocation.query.filter_by(user_id=user_id).count()
+    if count >= 3:
+        return jsonify({'message': '저장 장소는 최대 3개까지 가능합니다.'}), 400
+
+    loc = SavedLocation(user_id=user_id, name=name, address=address)
+    db.session.add(loc)
+    db.session.commit()
+    return jsonify(loc.to_dict()), 201
+
+@api_bp.route('/saved-locations/<int:location_id>', methods=['DELETE'])
+@jwt_login_required
+def delete_saved_location(location_id):
+    user_id = int(get_jwt_identity())
+    loc = SavedLocation.query.filter_by(id=location_id, user_id=user_id).first_or_404()
+    db.session.delete(loc)
+    db.session.commit()
+    return jsonify({'message': '삭제되었습니다.'}), 200
 
 # ── FAVORITES API ────────────────────────────────────────────────────────
 
