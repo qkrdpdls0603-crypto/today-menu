@@ -131,10 +131,29 @@ export default function MyPageEdit() {
   const handleCheckPassword = async () => {
     setError('')
     setIsPasswordValidated(false)
-    const { currentPassword, newPassword, newPassword2 } = passwordForm
-    if (!currentPassword || !newPassword || !newPassword2) { setError('모든 항목을 입력해주세요.'); return }
-    if (newPassword !== newPassword2) { setError('새 비밀번호가 일치하지 않습니다.'); return }
-    if (newPassword.length < 4) { setError('비밀번호는 4자리 이상이어야 합니다.'); return }
+    
+    const {
+      currentPassword,
+      newPassword,
+      newPassword2,
+    } = passwordForm
+
+    if (!currentPassword || !newPassword || !newPassword2) {
+      setError('모든 항목을 입력해주세요.')
+      return
+    }
+
+    if (newPassword !== newPassword2) {
+      setError('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    if (newPassword.length < 8) {
+      setError('비밀번호는 8자리 이상이어야 합니다.')
+      return
+    }
+
+
     try {
       await verifyPassword(currentPassword)
       setIsPasswordValidated(true)
