@@ -324,7 +324,7 @@ export default function Home() {
         </div>
 
         <aside className={trendCardClass}>
-          <h4 className={trendTitleClass}>🔥 실시간 인기 검색어</h4>
+          <h4 className={trendTitleClass}>실시간 인기 검색어</h4>
           <div className={trendListClass}>
             {trendKeywords.map((item, i) => (
               <Link
