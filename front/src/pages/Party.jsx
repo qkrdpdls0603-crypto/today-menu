@@ -21,7 +21,6 @@ export default function Party() {
   setLoading(true)
   getParties({}) 
     .then((d) => {
-      console.log("서버에서 받아온 전체 파티 리스트:", d)
       setAllParties(Array.isArray(d) ? d : [])
     })
     .catch(() => setAllParties([]))
