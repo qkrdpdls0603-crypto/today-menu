@@ -6,8 +6,6 @@ import RandomBanner from '../components/RandomBanner'
 import { getRestaurants, createLikeLog, toggleLike } from '../api/services'
 import api from '../api/axiosInstance'
 
-
-
 const CAT_ICON = {
   한식: './img/category/korean.png',
   일식: './img/category/japanese.webp',
@@ -52,29 +50,27 @@ export default function Menu() {
   const [searchInput, setSearchInput] = useState(q)
 
   const handleRestaurantLike = async (item) => {
-  if (!user) { alert('로그인이 필요합니다.'); return }
-  try {
-    if (item.log_id) {
-      // 기존 로그 있으면 토글
-      const res = await toggleLike(item.log_id)
-      setItems((prev) =>
-        prev.map((r) =>
-          r.id === item.id ? { ...r, is_liked: res.liked } : r
+    if (!user) { alert('로그인이 필요합니다.'); return }
+    try {
+      if (item.log_id) {
+        const res = await toggleLike(item.log_id)
+        setItems((prev) =>
+          prev.map((r) =>
+            r.id === item.id ? { ...r, is_liked: res.liked } : r
+          )
         )
-      )
-    } else {
-      // 로그 없으면 새로 생성 (찜 추가)
-      const res = await createLikeLog(item.id)
-      setItems((prev) =>
-        prev.map((r) =>
-          r.id === item.id ? { ...r, is_liked: true, log_id: res.log_id } : r
+      } else {
+        const res = await createLikeLog(item.id)
+        setItems((prev) =>
+          prev.map((r) =>
+            r.id === item.id ? { ...r, is_liked: true, log_id: res.log_id } : r
+          )
         )
-      )
+      }
+    } catch (err) {
+      console.error('찜하기 실패:', err)
     }
-  } catch (err) {
-    console.error('찜하기 실패:', err)
   }
-}
 
   const fetchData = useCallback(() => {
     setLoading(true)
@@ -101,7 +97,6 @@ export default function Menu() {
     
     if (keyword) {
       try {
-        // 이미 상단에 import api가 잘 되어 있으므로, 이 코드 한 줄만 넣으면 작동합니다!
         await api.post('/api/menu/search/log', { keyword })
       } catch (err) {
         console.error("메뉴 검색 로그 저장 실패:", err)
@@ -152,26 +147,13 @@ export default function Menu() {
         </div>
       </div>
 
-      {/* 검색창 */}
+      {/* 검색창 및 정렬 필터 */}
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-      <div className="w-full max-w-[420px]">
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-          className="flex h-12 items-center gap-3"
-        >
-          <input
-            type="text"
-            placeholder="식당명을 검색하세요"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="h-12 min-w-0 flex-1 rounded-full border-[1.5px] border-[rgba(244,108,111,0.8)] bg-white px-5 text-[0.92rem] font-semibold text-[var(--text-primary)] shadow-[0_4px_18px_rgba(244,108,111,0.08)] outline-none placeholder:text-[#9D8C86]"
-          />
-          <button
-            type="submit"
-            className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full border-0 bg-[linear-gradient(135deg,var(--color-primary),#F98082)] text-[1.8rem] font-bold text-white shadow-[0_4px_18px_rgba(244,108,111,0.16)] transition hover:brightness-105 hover:shadow-md"
-            aria-label="검색"
+        <div className="w-full max-w-[420px]">
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
+            className="flex h-12 items-center gap-3"
           >
-
             <input
               type="text"
               placeholder="식당명을 검색하세요"
@@ -189,8 +171,6 @@ export default function Menu() {
           </form>
         </div>
 
-      
-
         <div className="mt-6 flex items-center gap-4">
           <span className="text-[0.85rem] text-[var(--text-muted)]">
             총 {pagination.total.toLocaleString()}개
@@ -206,6 +186,7 @@ export default function Menu() {
             <option value="new">최신순</option>
           </select>
         </div>
+      </div>
 
       {/* 그리드카드 */}
       {loading ? (

@@ -286,8 +286,8 @@ function Roulette() {
             />
           </div>
 
-          <button className='inline-flex min-h-[44px] items-center justify-center mt-[12px] mr-[15px] gap-2 rounded-[12px] bg-[var(--bg-surface)] px-6 text-[0.94rem] font-black text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 hover:bg-[var(--color-accent)]' 
-          onClick={spin} disabled={isSpinning}>
+          <button className='inline-flex min-h-[44px] items-center justify-center mt-[12px] mr-[15px] gap-2 rounded-[12px] bg-[var(--bg-surface)] px-6 text-[0.94rem] font-black text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 hover:bg-[var(--color-accent)]'
+            onClick={spin} disabled={isSpinning}>
             {isSpinning ? '🌀 돌아가는 중...' : '🎰 룰렛 돌리기!'}
           </button>
 
@@ -363,6 +363,8 @@ function TwentyQ({ menus }) {
 
   const q = TWENTY_QS[step]
 
+  const navigate = useNavigate()
+
   const answer = (yn) => {
     const newA = [...answers, yn]
     setAnswers(newA)
@@ -380,6 +382,15 @@ function TwentyQ({ menus }) {
     } else {
       setStep(step + 1)
     }
+  }
+
+  const goToCategoryPage = () => {
+    if (!guess) return
+
+    const targetCategory =
+      guess.category === '피자' ? '양식' : guess.category
+
+    navigate(`/menu?cat=${targetCategory}`)
   }
 
   const reset = () => {
@@ -461,17 +472,43 @@ function TwentyQ({ menus }) {
                   color: 'var(--text-muted)'
                 }}
               >
-                {guess.category}
+                <div style={{ display: 'inline-block', background: 'rgba(244,108,111,.12)', color: 'var(--color-primary)', borderRadius: 20, padding: '3px 12px', fontSize: '.78rem', fontWeight: 700, marginBottom: 12 }}>
+                  {guess.category === '피자' ? '양식' : guess.category}
+                </div>
+                <div
+                  style={{
+                    fontSize: '.85rem',
+                    color: 'var(--text-muted)',
+                    marginTop: 12,
+                    marginBottom: 16,
+                  }}
+                >
+                  이 카테고리의 모든 메뉴를 확인해 볼까요?
+                </div>
+
+                <button
+                  onClick={goToCategoryPage}
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 28px',
+                    borderRadius: 50,
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    fontSize: '.9rem',
+                    fontWeight: 800,
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {guess.category === '피자' ? '양식' : guess.category} 전체 메뉴 보러가기 →
+                </button>
               </div>
             </div>
           </div>
-          {/* <button onClick={() => setReveal(!reveal)}
-            style={{ fontSize: '.82rem', color: 'var(--text-muted)', background: 'none', border: '1px solid var(--border-color)', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', marginBottom: 12 }}>
-            {reveal ? '숨기기' : '🔍 내가 생각했던 음식 공개'}
-          </button> */}
           {reveal && (
             <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: 12, marginBottom: 12, fontSize: '.88rem' }}>
               {target?.name} ({target?.category})
+
             </div>
           )}
           <button className="btn btn-secondary" onClick={reset}>🔄 다시하기</button>
@@ -493,6 +530,8 @@ function WorldCup({ menus }) {
   const [champion, setChampion] = useState(null)
   const [choosing, setChoosing] = useState(null)
 
+  const navigate = useNavigate()
+
   const init = () => {
     const pool = [...menus].sort(() => Math.random() - .5).slice(0, POOL)
     setBracket(pool); setRound(0); setWinners([]); setChampion(null)
@@ -503,6 +542,15 @@ function WorldCup({ menus }) {
   const right = bracket[round * 2 + 1]
   const totalMatches = bracket.length / 2
   const roundLabel = bracket.length === 2 ? '결승' : bracket.length === 4 ? '준결승' : bracket.length === 8 ? '8강' : bracket.length === 16 ? '16강' : '32강'
+
+  const goToCategoryPage = () => {
+    if (!champion) return
+
+    const targetCategory =
+      champion.category === '피자' ? '양식' : champion.category
+
+    navigate(`/menu?cat=${targetCategory}`)
+  }
 
   const pick = (winner) => {
     if (choosing) return
@@ -556,10 +604,40 @@ function WorldCup({ menus }) {
         {/* 대결창과 똑같이 깔끔하게 채워집니다 */}
         <MenuImage item={champion} />
         <div style={{ fontWeight: 900, fontSize: '1.5rem', padding: '14px 8px 4px' }}>{champion.name}</div>
-        <div style={{ fontSize: '.82rem', color: 'var(--text-muted)', paddingBottom: '16px' }}>
+        <div style={{ display: 'inline-block', background: 'rgba(244,108,111,.12)', color: 'var(--color-primary)', borderRadius: 20, padding: '3px 12px', fontSize: '.78rem', fontWeight: 700, marginBottom: 12 }}>
           {champion.category === '피자' ? '양식' : champion.category}
         </div>
+        <div
+          style={{
+            fontSize: '.85rem',
+            color: 'var(--text-muted)',
+            marginBottom: 16
+          }}
+        >
+          이 카테고리의 모든 메뉴를 확인해 볼까요?
+        </div>
+
+        <button
+          onClick={goToCategoryPage}
+          style={{
+            display: 'inline-block',
+            padding: '10px 28px',
+            borderRadius: 50,
+            background: 'var(--color-primary)',
+            color: '#fff',
+            fontSize: '.9rem',
+            fontWeight: 800,
+            border: 'none',
+            cursor: 'pointer',
+            marginBottom: 16
+          }}
+        >
+          {champion.category === '피자' ? '양식' : champion.category} 전체 메뉴 보러가기 →
+        </button>
       </div>
+
+
+
       <div><button className="btn btn-secondary" onClick={init}>🔄 다시하기</button></div>
     </div>
   )
@@ -640,7 +718,18 @@ function ScratchCard({ menus }) {
   const [done, setDone] = useState(false)
   const TARGET = 60
 
+  const navigate = useNavigate()
+
   const pick = useCallback(() => menus.length > 0 ? menus[Math.floor(Math.random() * menus.length)] : null, [menus])
+
+  const goToCategoryPage = () => {
+    if (!prize) return
+
+    const targetCategory =
+      prize.category === '피자' ? '양식' : prize.category
+
+    navigate(`/menu?cat=${targetCategory}`)
+  }
 
   const initCard = useCallback(() => {
     const p = pick()
@@ -736,7 +825,7 @@ function ScratchCard({ menus }) {
               fontSize: '1.3rem',
               padding: '14px 8px 4px'
             }}>
-              {prize.name}
+              
             </div>
 
             <div style={{
@@ -744,17 +833,36 @@ function ScratchCard({ menus }) {
               color: 'var(--text-muted)',
               paddingBottom: '14px'
             }}>
-              {prize.category}
             </div>
+            <div
+              style={{
+                fontSize: '.85rem',
+                color: 'var(--text-muted)',
+                marginBottom: 16
+              }}
+            >
+              이 카테고리의 모든 메뉴를 확인해 볼까요?
+            </div>
+
+            <button
+              onClick={goToCategoryPage}
+              style={{
+                display: 'inline-block',
+                padding: '10px 28px',
+                borderRadius: 50,
+                background: 'var(--color-primary)',
+                color: '#fff',
+                fontSize: '.9rem',
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer',
+                marginBottom: 16
+              }}
+            >
+              {prize.category === '피자' ? '양식' : prize.category} 전체 메뉴 보러가기 →
+            </button>
           </div>
 
-          <div style={{
-            fontWeight: 900,
-            fontSize: '1rem',
-            color: 'var(--color-accent)'
-          }}>
-            🎉 당첨!
-          </div>
         </div>
       )}
       <button onClick={initCard}
@@ -772,7 +880,7 @@ function Ladder({ menus }) {
   const MAX = 6
   const NUM_ROWS = 10
   const COLORS = ['#E53E3E', '#DD6B20', '#F6AD55', '#38A169', '#3182CE', '#6B46C1']
-
+  const navigate = useNavigate()
   const canvasRef = useRef(null)
   const [items, setItems] = useState([])
   const [inputVal, setInputVal] = useState('')
@@ -781,6 +889,14 @@ function Ladder({ menus }) {
   const [result, setResult] = useState(null)
   const [animPath, setAnimPath] = useState(null)
   const [fetching, setFetching] = useState(false)
+  const goToCategoryPage = () => {
+    if (!resultMenu) return
+
+    const targetCategory =
+      resultMenu.category === '피자' ? '양식' : resultMenu.category
+
+    navigate(`/menu?cat=${targetCategory}`)
+  }
 
   // ── 사다리 생성 핵심 규칙 ─────────────────────────────────────────────────
   // 규칙: 같은 row에서 어떤 세로줄도 좌우 동시에 연결 금지 (Y자 교차 방지)
@@ -1132,7 +1248,36 @@ function Ladder({ menus }) {
                       marginTop: 6,
                     }}
                   >
-                    {resultMenu.category}
+                    <div style={{ display: 'inline-block', background: 'rgba(244,108,111,.12)', color: 'var(--color-primary)', borderRadius: 20, padding: '3px 12px', fontSize: '.78rem', fontWeight: 700, marginBottom: 12 }}>
+                      {resultMenu.category === '피자' ? '양식' : resultMenu.category}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '.85rem',
+                        color: 'var(--text-muted)',
+                        marginTop: 16,
+                        marginBottom: 16,
+                      }}
+                    >
+                      이 카테고리의 모든 메뉴를 확인해 볼까요?
+                    </div>
+
+                    <button
+                      onClick={goToCategoryPage}
+                      style={{
+                        display: 'inline-block',
+                        padding: '10px 28px',
+                        borderRadius: 50,
+                        background: 'var(--color-primary)',
+                        color: '#fff',
+                        fontSize: '.9rem',
+                        fontWeight: 800,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {resultMenu.category === '피자' ? '양식' : resultMenu.category} 전체 메뉴 보러가기 →
+                    </button>
                   </div>
                 )}
               </div>
@@ -1176,44 +1321,44 @@ export default function Game() {
   return (
     <div className="game-wrap" style={{ maxWidth: 640 }}>
       <div style={{ marginLeft: -20 }}>
-      <h1
-        style={{
-          fontSize: '1.5rem',
-          fontWeight: 800,
-          marginBottom: 5,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10
-        }}
-      >
-        <img
-          src="/img/icon/logo.png"
-          alt="오늘 뭐먹지?"
+        <h1
           style={{
-            height: 38,
-            width: 38,
-            objectFit: 'contain',
-            marginLeft:20
+            fontSize: '1.5rem',
+            fontWeight: 800,
+            marginBottom: 5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10
           }}
-          onError={(e) => {
-            e.target.style.display = 'none'
+        >
+          <img
+            src="/img/icon/logo.png"
+            alt="오늘 뭐먹지?"
+            style={{
+              height: 38,
+              width: 38,
+              objectFit: 'contain',
+              marginLeft: 20
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none'
+            }}
+          />
+
+          게임창
+        </h1>
+
+        <p
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '.88rem',
+            marginBottom: 24,
+            marginLeft: 20
+
           }}
-        />
-
-        게임창
-      </h1>
-
-      <p
-        style={{
-          color: 'var(--text-muted)',
-          fontSize: '.88rem',
-          marginBottom: 24,
-          marginLeft:20
-
-        }}
-      >
-        게임으로 오늘 메뉴를 정해보세요!
-      </p>
+        >
+          게임으로 오늘 메뉴를 정해보세요!
+        </p>
       </div>
 
       {/* 탭 */}
