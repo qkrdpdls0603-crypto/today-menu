@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { createParty, getRestaurants } from '../api/services'
 
 export default function PartyCreate() {
@@ -7,7 +7,7 @@ export default function PartyCreate() {
   const location   = useLocation()
   const [searchParams] = useSearchParams()
 
-  // MenuDetail → navigate('/party/create', { state: { restaurant: rest } }) 로 전달
+  // MenuDetail navigate('/party/create', { state: { restaurant: rest } }) 로 전달
   const preselected = location.state?.restaurant ?? null
 
   const [restaurants, setRestaurants] = useState([])
@@ -51,126 +51,153 @@ export default function PartyCreate() {
     return localISOTime;
   };
 
-  // 선택된 식당명 표시
+  // 선택한 식당명 표시
   const selectedName = preselected?.name ||
     restaurants.find(r => String(r.restaurant_id ?? r.id) === String(form.restaurant_id))?.name ||
     '선택된 식당 없음'
 
   return (
-    <>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0' }}>
-        <div className="mb-4 w-full max-w-[560px]">
-          <button
-            type="button"
-            onClick={() => navigate('/party')}
-            className="inline-flex min-h-[35px] items-center justify-center gap-2 rounded-[12px] bg-white px-5 text-[0.89rem] font-black text-[var(--color-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5"
-          >
-            ← 목록으로
-          </button>
-        </div>
+    <div className="mx-auto flex w-full max-w-[1110px] justify-center px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative w-full">
+        <button
+          type="button"
+          onClick={() => navigate('/party')}
+          className="ml-39 absolute left-0 top-0 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#f0ded4] bg-white shadow-sm transition hover:-translate-x-0.5 hover:shadow-md sm:left-2"
+          aria-label="목록으로 이동"
+        >
+          <img
+            src="/img/icon/arrow_left.png"
+            alt="목록으로"
+            className="h-9 w-9 object-contain"
+          />
+        </button>
 
-        <div className="text-center mb-[24px]">
-          <div className="site-logo relative justify-center min-h-[40px] pl-3 flex items-center">
-            
-            <img
-              src="/img/icon/logo.png"
-              alt="오늘 뭐먹지 로고"
-              className="absolute right-full h-7 w-auto object-contain"
-              style={{ marginRight: '8px' }}
-            />
-            
-            <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>밥친구 파티 만들기</span>
-          </div>
-        </div>
-
-        <div style={{
-          background: 'var(--bg-white)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--border-radius-xl)',
-          padding: 32,
-          maxWidth: 560,
-          width: '100%'
-        }}>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">파티 제목 *</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="예: 강남역 근처 삼겹살 같이 먹어요!"
-                required
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+        <div className="mb-7 text-center">
+          <div className="inline-flex items-center justify-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[#FFF5F5] shadow-sm">
+              <img
+                src="/img/icon/logo.png"
+                alt="오늘 뭐먹지 로고"
+                className="h-8 w-8 object-contain"
               />
+            </span>
+            <h1 className="text-[1.65rem] font-black text-[var(--text-primary)] sm:text-[2rem]">
+              밥친구 파티 만들기
+            </h1>
+          </div>
+          <p className="mt-2 text-[0.9rem] font-semibold text-[var(--text-muted)]">
+            함께 먹을 밥친구를 찾기 위한 파티를 만들어보세요!
+          </p>
+        </div>
+
+        <div className="mx-auto w-full max-w-[720px] rounded-[24px] border border-[var(--border-color)] bg-white p-5 shadow-[0_18px_45px_rgba(42,29,26,0.10)] sm:p-8 lg:p-10">
+          <form onSubmit={handleSubmit}>
+            <div className="mb-9">
+              <label className="mb-4 flex items-center gap-4 text-xl font-extrabold text-[var(--text-primary)]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center text-xl text-[var(--color-primary)]">
+                  <img className="w-10 h-8" src='/img/icon/speech-bubble.png' alt='파티제목' />
+                </span>
+                <span>파티 제목 *</span>
+              </label>
+              <div className="pl-0 sm:pl-11">
+                <input
+                  type="text"
+                  className="h-14 w-full rounded-2xl border border-[var(--border-color)] bg-white px-5 text-base font-semibold text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-light)] focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_rgba(244,108,111,0.16)]"
+                  placeholder="예: 강남역 근처 삼겹살 같이 먹어요!"
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">선택 식당</label>
-              <div
-                className="form-control"
-                style={{
-                  color: form.restaurant_id ? 'var(--text-primary)' : 'var(--text-muted)',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                }}
-              >
-                <span>{selectedName}</span>
-                {!preselected && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/menu')}
-                    style={{
-                      background: 'var(--color-primary)', color: '#fff',
-                      border: 'none', borderRadius: 6, padding: '3px 10px',
-                      fontSize: '.78rem', cursor: 'pointer', fontWeight: 700,
-                    }}
-                  >
-                    식당 선택
-                  </button>
+            <div className="mb-9">
+              <label className="mb-4 flex items-center gap-4 text-xl font-extrabold text-[var(--text-primary)]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center text-xl text-[var(--color-primary)]">
+                  <img className="w-10 h-9" src='/img/icon/restaurant.png' alt='식당선택' />
+                </span>
+                <span>식당 선택 *</span>
+              </label>
+              <div className="pl-0 sm:pl-11">
+                <div
+                  className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border-color)] bg-white px-5 py-3 text-base font-semibold outline-none transition focus-within:border-[var(--color-primary)] focus-within:shadow-[0_0_0_3px_rgba(244,108,111,0.16)]"
+                  style={{ color: form.restaurant_id ? 'var(--text-primary)' : 'var(--text-muted)' }}
+                >
+                  <span className="min-w-0 flex-1 truncate">{selectedName}</span>
+                  {!preselected && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/menu')}
+                      className="inline-flex h-9 flex-shrink-0 items-center justify-center rounded-full border border-[#FAD0D1] bg-[#FEEDEC] px-4 text-sm font-extrabold text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
+                    >
+                      식당 선택
+                    </button>
+                  )}
+                </div>
+                {!form.restaurant_id && (
+                  <div className="mt-2 text-sm font-semibold text-[var(--color-danger)]">
+                    메뉴 페이지에서 식당을 선택한 뒤 파티를 만들어주세요.
+                  </div>
                 )}
               </div>
-              {!form.restaurant_id && (
-                <div style={{ fontSize: '.78rem', color: 'var(--color-danger)', marginTop: 4 }}>
-                  메뉴 페이지에서 식당을 선택한 후 파티를 만들어주세요.
-                </div>
-              )}
             </div>
 
             <input type="hidden" value={form.restaurant_id} />
 
-            <div className="form-group">
-              <label className="form-label">약속 일시 *</label>
-              <input
-                type="datetime-local"
-                className="form-control"
-                required
-                value={form.meeting_time}
-                min={getNowISO()}
-                onChange={(e) => setForm({ ...form, meeting_time: e.target.value })}
-              />
+            <div className="mb-9">
+              <label className="mb-4 flex items-center gap-4 text-xl font-extrabold text-[var(--text-primary)]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center text-xl text-[var(--color-primary)]">
+                  <img className="w-10 h-8" src='/img/icon/calendar.png' alt='약속일시' />
+                </span>
+                <span>약속 일시 *</span>
+              </label>
+              <div className="pl-0 sm:pl-11">
+                <input
+                  type="datetime-local"
+                  className="h-14 w-full rounded-2xl border border-[var(--border-color)] bg-white px-5 text-base font-semibold text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-light)] focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_rgba(244,108,111,0.16)]"
+                  required
+                  value={form.meeting_time}
+                  min={getNowISO()}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  onChange={(e) => setForm({ ...form, meeting_time: e.target.value })}
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">최대 인원 *</label>
-              <input
-                type="number"
-                className="form-control"
-                min={2} max={10}
-                required
-                value={form.max_people}
-                onChange={(e) => setForm({ ...form, max_people: e.target.value })}
-              />
+            <div className="mb-10">
+              <label className="mb-4 flex items-center gap-4 text-xl font-extrabold text-[var(--text-primary)]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center text-xl text-[var(--color-primary)]">
+                  <svg
+                        viewBox="0 0 24 24"
+                        className="h-8 w-8 fill-[#F46C6F]"
+                      >
+                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+                      </svg>
+                </span>
+                <span>최대 인원 *</span>
+              </label>
+              <div className="pl-0 sm:pl-11">
+                <input
+                  type="number"
+                  className="h-14 w-full rounded-2xl border border-[var(--border-color)] bg-white px-5 text-base font-semibold text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-light)] focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_rgba(244,108,111,0.16)]"
+                  min={2} max={10}
+                  required
+                  value={form.max_people}
+                  onChange={(e) => setForm({ ...form, max_people: e.target.value })}
+                />
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-6 text-lg font-semibold rounded-[12px] bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] transition-colors mt-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-[18px] bg-[linear-gradient(135deg,var(--color-primary),#F5535D)] px-6 py-4 text-lg font-extrabold text-white shadow-[0_12px_24px_rgba(244,108,111,0.24)] transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? '생성 중...' : '파티 생성하기'}
             </button>
           </form>
         </div>
       </div>
-    </>
+    </div>
   )
 }

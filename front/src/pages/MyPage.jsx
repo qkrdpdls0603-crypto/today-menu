@@ -523,7 +523,7 @@ export default function MyPage() {
             </div>
             <div className="mt-3 flex justify-end">
               <Link to="/support" state={{ defaultTab: 'inquiry' }} className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-primary)] px-4 py-[7px] text-[.85rem] font-bold text-white no-underline">
-                💬 고객문의
+                고객문의
               </Link>
             </div>
           </div>

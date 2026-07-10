@@ -660,7 +660,8 @@ export default function PartyDetail() {
                       <button className="btn btn-secondary btn-block" disabled>✅ 참여 중</button>
                       {!isRecruiting && (
                         <button className="btn btn-info btn-block" onClick={() => setActiveTab('chat')}>
-                          💬 채팅방 입장
+                          <img className="w-10 h-8" src='/img/icon/speech-bubble.png' alt='파티제목' />
+                           채팅방 입장
                         </button>
                       )}
                     </div>
