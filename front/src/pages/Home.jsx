@@ -9,7 +9,7 @@ import RandomBanner from '../components/RandomBanner'
 import api from '../api/axiosInstance'
 
 const adBannerClass =
-  'w-full overflow-hidden rounded-[12px] bg-white max-md:h-[70px]'
+  'w-full overflow-hidden rounded-[12px] bg-white'
 const adBannerLinkClass = 'block h-full w-full'
 const adBannerImageClass =
   'h-full w-full object-contain object-center'
