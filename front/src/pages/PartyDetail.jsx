@@ -19,6 +19,7 @@ export default function PartyDetail() {
   const [reviews, setReviews] = useState([])
   const [messages, setMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
+  const [chatError, setChatError] = useState('')
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'chat' ? 'chat' : 'info')
   const [voteRemaining, setVoteRemaining] = useState(2)
   const [votedToday, setVotedToday] = useState([])
@@ -33,6 +34,14 @@ export default function PartyDetail() {
   const pct = party ? Math.min(Math.round((party.member_count / party.max_people) * 100), 100) : 0;
   const isHost = user && party ? party.host?.user_id === user.user_id : false;
   const hasMembers = party ? party.members.length > 1 : false;
+  const canCloseOrFinishParty = party ? party.member_count >= 2 : false;
+  const isPartyFull = party ? party.member_count >= party.max_people : false;
+  const canReopenParty = party ? party.status === 'CLOSED' && !isPartyFull : false;
+  const completedAt = party?.completed_at ? new Date(party.completed_at) : null;
+  const chatDisabledAt = completedAt ? new Date(completedAt.getTime() + 7 * 24 * 60 * 60 * 1000) : null;
+  const isChatLocked = party
+    ? Boolean(party.is_chat_locked) || (party.status === 'COMPLETED' && chatDisabledAt && Date.now() >= chatDisabledAt.getTime())
+    : false;
 
   const openReportModal = (userId) => {
     setTargetReportId(userId);
@@ -55,16 +64,18 @@ export default function PartyDetail() {
   }, [partyId, navigate])
 
   useEffect(() => {
+    if (!user) return;
     getMannerVoteStatus()
       .then(data => {
-        const formattedVotes = Object.entries(data).map(([id, type]) => ({
-          id: parseInt(id),
-          type: type
+        setVoteRemaining(data.remaining ?? 0);
+        const formattedVotes = (data.votes ?? []).map((vote) => ({
+          id: Number(vote.target_id),
+          type: vote.is_positive
         }));
         setVotedToday(formattedVotes);
       })
       .catch(err => console.error("투표 현황 로드 실패", err));
-  }, []);
+  }, [user]);
 
   // ── 채팅 스크롤 ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -132,6 +143,10 @@ export default function PartyDetail() {
 
   const handleChat = (e) => {
     e.preventDefault()
+    if (isChatLocked) {
+      setChatError('파티 종료 후 7일이 지나 채팅이 비활성화되었습니다.')
+      return
+    }
     if (!chatInput.trim() || !socket.current) return
 
     socket.current.emit('send_message', {
@@ -140,25 +155,12 @@ export default function PartyDetail() {
       content: chatInput,
     })
     setChatInput('')
+    setChatError('')
   }
 
   if (!party) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>로딩 중...</div>
   )
-
-  const checkAndToggleRecruitment = async (partyId) => {
-    const updatedParty = await getParty(partyId);
-    
-    if (updatedParty.member_count < updatedParty.max_people && updatedParty.status === 'CLOSED') {
-      try {
-        await api.patch(`/api/party/${partyId}/close`, { status: 'RECRUITING' });
-        return await getParty(partyId); 
-      } catch (e) {
-        console.error("자동 모집 전환 실패:", e);
-      }
-    }
-    return updatedParty;
-  };
 
   const handleVote = async (targetId, isPositive) => {
     if (voteRemaining <= 0) { 
@@ -177,6 +179,9 @@ export default function PartyDetail() {
       setTimeout(() => setVoteMsg(''), 3000);
     } catch (e) {
       const errMsg = e.response?.data?.message || '투표 실패';
+      if (e.response?.data?.remaining !== undefined) {
+        setVoteRemaining(e.response.data.remaining);
+      }
       setVoteMsg(errMsg);
       setTimeout(() => setVoteMsg(''), 3000);
     }
@@ -186,19 +191,9 @@ export default function PartyDetail() {
     try {
       // 1. 서버에 강퇴 요청
       await api.delete(`/api/party/${partyId}/kick/${targetUserId}`);
-      
-      // 2. 강퇴 성공 시 서버 데이터가 DB에서 인원수 감소 반영됨
-      // 여기서 즉시 모집 재개 API를 호출하여 상태를 강제 변경
-      // 마감된 상태라면 모집 중으로 전환 시도
-      try {
-        await api.patch(`/api/party/${partyId}/status`, { status: 'RECRUITING' });
-      } catch (err) {
-        console.log("이미 모집 중이거나 상태 변경 불필요");
-      }
 
-      // 3. 모든 작업이 끝난 후 최신 파티 데이터 조회
       const updatedParty = await getParty(partyId);
-      setParty({ ...updatedParty, status: 'RECRUITING', member_count: updatedParty.member_count - 1 });
+      setParty(updatedParty);
       
       alert('강퇴 처리가 완료되었습니다.');
       
@@ -225,8 +220,7 @@ export default function PartyDetail() {
 
       const updatedParty = await getParty(partyId);
       
-      if (updatedParty.member_count < updatedParty.max_people && updatedParty.status === 'CLOSED') {
-        await api.patch(`/api/party/${partyId}/close`, { status: 'RECRUITING' });
+      if (updatedParty.status === 'RECRUITING') {
         alert('자리가 생겨 파티가 자동으로 모집 중으로 전환되었습니다.');
       } else {
         alert('파티에서 퇴장했습니다.');
@@ -286,6 +280,14 @@ export default function PartyDetail() {
 
   const handleToggleStatus = async () => {
     const isClosing = party.status === 'RECRUITING';
+    if (isClosing && !canCloseOrFinishParty) {
+      alert('파티 모집 마감은 2인 이상 참여 시 가능합니다.');
+      return;
+    }
+    if (!isClosing && !canReopenParty) {
+      alert('정원이 가득 찬 파티는 다시 모집할 수 없습니다.');
+      return;
+    }
     if (!window.confirm(isClosing ? '모집을 마감하시겠습니까?' : '모집을 다시 시작하시겠습니까?')) return;
     
     try {
@@ -325,6 +327,10 @@ export default function PartyDetail() {
   }
 
   const handleCloseParty = async () => {
+    if (!canCloseOrFinishParty) {
+      alert('파티 모집 마감은 2인 이상 참여 시 가능합니다.');
+      return;
+    }
     if (!window.confirm('정말로 파티 모집을 마감하시겠습니까?')) return
     try {
       await api.patch(`/api/party/${partyId}/close`)
@@ -336,9 +342,13 @@ export default function PartyDetail() {
   }
 
   const handleFinishParty = async () => {
+    if (!canCloseOrFinishParty) {
+      alert('파티 종료는 2인 이상 참여 시 가능합니다.');
+      return;
+    }
     if (!window.confirm("파티를 종료하시겠습니까? 종료 후에는 멤버들의 매너 점수를 평가할 수 있습니다.")) return;
     try {
-      await (partyId);
+      await api.patch(`/api/party/${partyId}/finish`);
       alert("파티가 종료되었습니다.");
       const d = await getParty(partyId);
       setParty(d);
@@ -601,14 +611,27 @@ export default function PartyDetail() {
                   })}
                 </div>
                 {isMember ? (
+                  <>
+                  {isChatLocked && (
+                    <p className="mb-3 text-center text-sm font-bold text-[var(--text-muted)]">
+                      파티 종료 후 7일이 지나 채팅이 비활성화되었습니다.
+                    </p>
+                  )}
+                  {chatError && !isChatLocked && (
+                    <p className="mb-3 text-center text-sm font-bold text-[var(--color-danger)]">
+                      {chatError}
+                    </p>
+                  )}
                   <form onSubmit={handleChat} className="flex gap-2">
                     <input type="text" className="h-12 min-w-0 flex-1 rounded-full border-[1.5px] border-[rgba(244,108,111,0.8)] bg-white px-5 text-[0.92rem] font-semibold text-[var(--text-primary)] shadow-[0_4px_18px_rgba(244,108,111,0.08)] outline-none 
                     placeholder= 메시지 입력..."
                       required
+                      disabled={isChatLocked}
                       value={chatInput} onChange={(e) => setChatInput(e.target.value)} />
 
                     <button
                       type="submit"
+                      disabled={isChatLocked}
                       className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full border-0 bg-[linear-gradient(135deg,var(--color-primary),#F98082)] shadow-[0_4px_18px_rgba(244,108,111,0.16)] transition hover:brightness-105 hover:shadow-md"
                     >
                       <img
@@ -618,6 +641,7 @@ export default function PartyDetail() {
                       />
                     </button>
                   </form>
+                  </>
                 ) : (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '.88rem' }}>채팅은 파티 참여 후 이용 가능합니다</p>
                 )}
@@ -677,22 +701,11 @@ export default function PartyDetail() {
               {/* 호스트 전용: 파티 종료 */}
               {party.is_host && party.status === 'CLOSED' && (
                 <button
-                  onClick={async () => {
-                    if (!window.confirm('파티를 종료하시겠습니까?')) return
-                    try {
-                      await api.patch(`/api/party/${partyId}/finish`)
-                      alert('파티가 종료되었습니다.')
-                      navigate('/party')
-                    } catch (e) { alert(e.response?.data?.message || '종료 실패') }
-                  }}
-                  style={{
-                    width: '100%', marginBottom: 8, padding: '10px 0',
-                    background: 'var(--bg-surface)', color: 'var(--text-secondary)',
-                    border: 'none', borderRadius: 8,
-                    fontSize: '.88rem', fontWeight: 700, cursor: 'pointer',
-                  }}
+                  onClick={handleFinishParty}
+                  disabled={!canCloseOrFinishParty}
+                  className={`mb-2 w-full rounded-[8px] bg-[var(--bg-surface)] px-4 py-3 font-black text-[var(--text-secondary)] transition ${canCloseOrFinishParty ? 'hover:bg-[var(--bg-surface-2)]' : 'cursor-not-allowed opacity-50'}`}
                 >
-                 파티 종료하기
+                 {canCloseOrFinishParty ? '파티 종료하기' : '2인 이상 종료 가능'}
                 </button>
               )}
 
@@ -708,22 +721,19 @@ export default function PartyDetail() {
 
               {party.is_host && (
                 <button
-                  onClick={async () => {
-                    try {
-
-                      await api.patch(`/api/party/${partyId}/close`); 
-                      
-                      const d = await getParty(partyId);
-                      setParty(d);
-                      
-                      alert(`파티가 ${d.status === 'RECRUITING' ? '모집 중' : '모집 마감'} 상태로 변경되었습니다.`);
-                    } catch (e) {
-                      alert(e.response?.data?.message || '상태 변경 실패');
-                    }
-                  }}
-                  className="w-full rounded-[8px] border border-[var(--border-color)] bg-[var(--bg-surface)] px-4 py-3 font-black text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-2)]"
+                  onClick={handleToggleStatus}
+                  disabled={isCompleted || (party.status === 'RECRUITING' && !canCloseOrFinishParty) || (party.status === 'CLOSED' && !canReopenParty)}
+                  className={`w-full rounded-[8px] border border-[var(--border-color)] bg-[var(--bg-surface)] px-4 py-3 font-black text-[var(--text-secondary)] transition ${isCompleted || (party.status === 'RECRUITING' && !canCloseOrFinishParty) || (party.status === 'CLOSED' && !canReopenParty) ? 'cursor-not-allowed opacity-50' : 'hover:bg-[var(--bg-surface-2)]'}`}
                 >
-                  {party.status === 'RECRUITING' ? '모집 마감하기' : '다시 모집하기'}
+                  {isCompleted
+                    ? '파티 완료'
+                    : party.status === 'RECRUITING'
+                    ? (canCloseOrFinishParty ? '모집 마감하기' : '2인 이상 마감 가능')
+                    : canReopenParty
+                    ? '다시 모집하기'
+                    : isPartyFull
+                    ? '정원 마감'
+                    : '모집 마감'}
                 </button>
               )}
 
@@ -739,13 +749,7 @@ export default function PartyDetail() {
                     </Link>
                   ) : isMember ? (
                     <div className="flex flex-col gap-2">
-                      <button className="btn btn-secondary btn-block" disabled>✅ 참여 중</button>
-                      {!isRecruiting && (
-                        <button className="btn btn-info btn-block" onClick={() => setActiveTab('chat')}>
-                          {/* <img className="w-10 h-8" src='/img/icon/speech-bubble.png' alt='파티제목' /> */}
-                           채팅방 입장
-                        </button>
-                      )}
+                      <button className="block w-full cursor-not-allowed rounded-[8px] bg-[var(--color-primary)] py-[10px] text-center text-sm font-bold text-white opacity-70" disabled>참여 중</button>
                     </div>
                   ) : isRecruiting ? (
                     <button className="w-full rounded-[8px] bg-[var(--color-primary)] px-4 py-3 font-black text-white transition hover:bg-[var(--color-primary-dark)]" onClick={handleJoin}>
@@ -803,11 +807,13 @@ export default function PartyDetail() {
                     {user && party.is_host && !m.is_host && (
                       <button
                         onClick={() => {
+                          if (isCompleted) return;
                           if (window.confirm(`${m.user?.nickname}님을 정말로 강퇴하시겠습니까?`)) {
                             handleKick(m.user.user_id)
                           }
                         }}
-                        className="cursor-pointer rounded-md border border-[var(--color-danger)] bg-transparent px-2 py-[3px] text-[0.72rem] font-bold text-[var(--color-danger)]"
+                        disabled={isCompleted}
+                        className={`rounded-md border bg-transparent px-2 py-[3px] text-[0.72rem] font-bold ${isCompleted ? 'cursor-not-allowed border-[#ccc] text-[#999] opacity-60' : 'cursor-pointer border-[var(--color-danger)] text-[var(--color-danger)]'}`}
                       >
                         강퇴
                       </button>
@@ -826,7 +832,8 @@ export default function PartyDetail() {
                     {user && !party.is_host && m.user?.user_id === user.user_id && (
                       <button
                         onClick={handleLeaveParty}
-                        className="cursor-pointer rounded-md border border-[var(--border-color)] bg-transparent px-2 py-[3px] text-[0.72rem] font-bold text-[var(--text-muted)]"
+                        disabled={isCompleted}
+                        className={`rounded-md border bg-transparent px-2 py-[3px] text-[0.72rem] font-bold ${isCompleted ? 'cursor-not-allowed border-[#ccc] text-[#999] opacity-60' : 'cursor-pointer border-[var(--border-color)] text-[var(--text-muted)]'}`}
                       >
                         탈퇴
 
@@ -859,13 +866,13 @@ export default function PartyDetail() {
                       <button onClick={() => handleVote(m.user.user_id, true)}
                         disabled={votedToday.some(v => v.id === Number(m.user.user_id)) || voteRemaining <= 0}
                         title="매너 좋아요 +1°"
-                        className={`flex-1 cursor-pointer rounded-md border-0 px-2 py-[3px] text-[0.75rem] ${votedToday.some(v => v.id === m.user.user_id && v.type === true) ? 'bg-[#FFEE7F]' : 'bg-[var(--bg-surface)]'} ${voteRemaining <= 0 && !votedToday.includes(m.user?.user_id) ? 'opacity-40' : 'opacity-100'}`}>
+                        className={`flex-1 cursor-pointer rounded-md border-0 px-2 py-[3px] text-[0.75rem] ${votedToday.some(v => v.id === Number(m.user.user_id) && v.type === true) ? 'bg-[#FFEE7F]' : 'bg-[var(--bg-surface)]'} ${voteRemaining <= 0 && !votedToday.some(v => v.id === Number(m.user.user_id)) ? 'opacity-40' : 'opacity-100'}`}>
                         👍
                       </button>
                       <button onClick={() => handleVote(m.user.user_id, false)}
                         disabled={votedToday.some(v => v.id === Number(m.user.user_id)) || voteRemaining <= 0}
                         title="매너 싫어요 -1°"
-                        className={`flex-1 cursor-pointer rounded-md border-0 px-2 py-[3px] text-[0.75rem] ${votedToday.some(v => v.id === m.user.user_id && v.type === false) ? 'bg-[#FFEE7F]' : 'bg-[var(--bg-surface)]'} ${voteRemaining <= 0 && !votedToday.includes(m.user?.user_id) ? 'opacity-40' : 'opacity-100'}`}>
+                        className={`flex-1 cursor-pointer rounded-md border-0 px-2 py-[3px] text-[0.75rem] ${votedToday.some(v => v.id === Number(m.user.user_id) && v.type === false) ? 'bg-[#FFEE7F]' : 'bg-[var(--bg-surface)]'} ${voteRemaining <= 0 && !votedToday.some(v => v.id === Number(m.user.user_id)) ? 'opacity-40' : 'opacity-100'}`}>
                         👎
                       </button>
                     </div>

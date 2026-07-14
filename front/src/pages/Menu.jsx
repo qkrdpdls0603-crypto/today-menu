@@ -17,7 +17,7 @@ const CAT_ICON = {
   술집: './img/category/beer.webp'
 }
 const CATEGORIES = ['전체','한식','일식','중식','양식','분식','치킨','카페','술집']
-const adBannerClass = 'w-full overflow-hidden rounded-[12px] bg-white max-md:h-[70px] max-[540px]:mt-2 max-[540px]:mb-0 max-[540px]:h-[110px]'
+const adBannerClass = 'w-full overflow-hidden rounded-[12px] bg-white max-[540px]:mt-2 max-[540px]:mb-0'
 const categoryButtonBaseClass = 'flex cursor-pointer items-center justify-center gap-0 whitespace-nowrap rounded-full bg-[var(--bg-white)] px-3 py-2 text-[0.85rem] font-bold text-black shadow-sm transition-all duration-150 hover:scale-105 hover:bg-[var(--color-secondary)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)]'
 const categoryButtonActiveClass = 'scale-105 bg-[var(--color-secondary)] shadow-[0_4px_12px_rgba(0,0,0,0.12)]'
 

@@ -265,7 +265,7 @@ export default function MyPage() {
   const allLikedLogs = [
     ...apiLikedLogs.map(item => ({
       ...item,
-      log_id: item.log_id ?? item.id ?? Math.random(),
+      log_id: item.log_id ?? null,
       restaurant: item.restaurant || null,
     })),
     ...rec_logs.filter(r =>

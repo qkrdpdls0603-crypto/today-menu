@@ -81,6 +81,7 @@ class Party(db.Model):
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.Enum(StatusEnum), default=StatusEnum.RECRUITING)
     is_manual_close = db.Column(db.Boolean, default=False)
+    completed_at  = db.Column(db.DateTime, nullable=True)
 
     members  = db.relationship('PartyMember',   backref='party', cascade='all, delete-orphan')
     messages = db.relationship('ChatMessage',   backref='party', cascade='all, delete-orphan')
@@ -90,6 +91,8 @@ class Party(db.Model):
     def complete_party(self):
         """파티와 파티원 상태를 COMPLETED로 변경"""
         self.status = StatusEnum.COMPLETED
+        if not self.completed_at:
+            self.completed_at = datetime.utcnow()
         for member in self.members:
             member.status = 'COMPLETED'
 

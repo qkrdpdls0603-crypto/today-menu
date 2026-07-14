@@ -11,7 +11,7 @@ const likeButtonClass =
 const likedButtonClass = 'text-[var(--color-primary)]'
 const categoryBadgeClass =
   'inline-flex rounded-[var(--border-radius)] bg-[var(--color-primary)] px-2 py-[5px] text-[0.78rem] font-extrabold text-white'
-const titleClass = 'mt-5 mb-1.5 text-[1.08rem] font-black text-[var(--text-primary)]'
+const titleClass = 'mt-5 mb-1.5 text-[1.08rem] font-black text-[var(--text-primary)] max-[540px]:overflow-hidden max-[540px]:text-ellipsis max-[540px]:whitespace-nowrap'
 const metaClass = 'mt-1.3 mb-[5px] flex items-center gap-1 text-[0.88rem] text-[var(--text-secondary)]'
 const scoreClass = 'font-black text-[var(--color-primary)]'
 const addressClass = 'overflow-hidden text-ellipsis whitespace-nowrap text-[0.88rem] text-[var(--text-secondary)]'
@@ -46,7 +46,7 @@ export default function RestaurantCard({
 
   const rating = item.avg_rating ?? 0
   const category = item.category || ''
-  const reviewCount = item.review_count ?? Math.floor(rating * 10)
+  const reviewCount = item.review_count ?? 0
 
   const handleLikeClick = (event) => {
     event.preventDefault()

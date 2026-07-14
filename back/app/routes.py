@@ -68,7 +68,7 @@ def admin_required(f):
     return decorated
 
 def check_and_complete_expired_parties():
-    now = datetime.now()
+    now = datetime.utcnow()
     expired_parties = Party.query.filter(
         Party.status == StatusEnum.RECRUITING,
         Party.meeting_time < now
@@ -81,6 +81,11 @@ def check_and_complete_expired_parties():
 
 
 # ── 직렬화 헬퍼 ───────────────────────────────────────────────────────────────
+def is_party_chat_locked(party):
+    if party.status != StatusEnum.COMPLETED or not party.completed_at:
+        return False
+    return datetime.utcnow() >= party.completed_at + timedelta(days=7)
+
 def serialize_user(u):
     prefs = u.preferences or {}
     return {
@@ -100,6 +105,7 @@ def serialize_user(u):
 
 def serialize_restaurant(r, like_count=None, is_liked=False, log_id=None):
     phone = getattr(r, 'phone', None) or r.description or ''
+    review_count = len(getattr(r, 'reviews', []) or [])
     return {
         'id':          r.restaurant_id,
         'name':        r.name,
@@ -110,6 +116,7 @@ def serialize_restaurant(r, like_count=None, is_liked=False, log_id=None):
         'description': r.description,
         'phone':       phone,
         'avg_rating':  r.avg_rating,
+        'review_count': review_count,
         'like_count':  like_count if like_count is not None else 0,
         'business_hours': getattr(r, 'business_hours', '') or '',
         'image': getattr(r, 'image_url', None),
@@ -132,6 +139,9 @@ def serialize_party(p, viewer_id=None):
         'max_people':   p.max_people,
         'member_count': len(p.members),
         'status':       p.status.value,
+        'is_manual_close': bool(getattr(p, 'is_manual_close', False)),
+        'completed_at': p.completed_at.isoformat() if p.completed_at else None,
+        'is_chat_locked': is_party_chat_locked(p),
         'is_member':    any(m.user_id == viewer_id for m in p.members) if viewer_id else False,
         'is_host':      p.host_id == viewer_id if viewer_id else False,
         'created_at':   p.created_at.isoformat() if p.created_at else None,
@@ -847,7 +857,7 @@ def list_restaurants():
             ).first()
             if log:
                 is_liked = getattr(log, 'is_liked', True)
-                log_id = log.id
+                log_id = log.log_id
 
         # 찜 목록 개수 집계 (기존 메커니즘 유지용 카운트 계산)
         count = db.session.query(func.count(RecommendationLog.log_id))\
@@ -943,16 +953,19 @@ def list_parties():
     # 1. 일단 시간 지나고 정원 찬 파티를 일괄 정리 (Data Cleansing)
     now = datetime.now() 
     
-    Party.query.filter(
+    expired_parties = Party.query.filter(
         Party.status == StatusEnum.RECRUITING,
         Party.meeting_time < now
-    ).update({"status": StatusEnum.COMPLETED})
+    ).all()
+    for p in expired_parties:
+        p.complete_party()
     
     # 정원 찬 파티 '마감' 처리 (루프가 필요한 경우)
     recruiting_parties = Party.query.filter_by(status=StatusEnum.RECRUITING).all()
     for p in recruiting_parties:
         if len(p.members) >= p.max_people:
             p.status = StatusEnum.CLOSED
+            p.is_manual_close = False
             
     db.session.commit()
 
@@ -985,11 +998,12 @@ def get_party(party_id):
     party    = Party.query.get_or_404(party_id)
     now = datetime.utcnow()
     if party.status != StatusEnum.COMPLETED and party.meeting_time < now:
-        party.status = StatusEnum.COMPLETED
+        party.complete_party()
         try: db.session.commit()
         except Exception: db.session.rollback()
     elif party.status == StatusEnum.RECRUITING and len(party.members) >= party.max_people:
         party.status = StatusEnum.CLOSED
+        party.is_manual_close = False
         try: db.session.commit()
         except Exception: db.session.rollback()
     messages = ChatMessage.query.filter_by(party_id=party_id)\
@@ -1091,6 +1105,9 @@ def party_chat(party_id):
     content   = request.get_json().get('content', '').strip()
     if not content:
         return jsonify({'message': 'content is required'}), 400
+    party = Party.query.get_or_404(party_id)
+    if is_party_chat_locked(party):
+        return jsonify({'message': '파티 종료 후 7일이 지나 채팅이 비활성화되었습니다.'}), 403
     msg = ChatMessage(party_id=party_id, sender_id=sender_id, content=content)
     db.session.add(msg)
     db.session.commit()
@@ -1106,9 +1123,15 @@ def manual_close_party(party_id):
         return jsonify({'message': '호스트만 변경할 수 있습니다.'}), 403
     
     if party.status == StatusEnum.RECRUITING:
+        if len(party.members) < 2:
+            return jsonify({'message': '파티 모집 마감은 2인 이상 참여 시 가능합니다.'}), 400
         party.status = StatusEnum.CLOSED
+        party.is_manual_close = True
     elif party.status == StatusEnum.CLOSED:
+        if len(party.members) >= party.max_people:
+            return jsonify({'message': '정원이 가득 찬 파티는 다시 모집할 수 없습니다.'}), 400
         party.status = StatusEnum.RECRUITING
+        party.is_manual_close = False
     else:
         return jsonify({'message': '상태를 변경할 수 없는 파티입니다.'}), 400
         
@@ -1123,6 +1146,8 @@ def kick_member(party_id, target_user_id):
     
     if party.host_id != current_user_id:
         return jsonify({'message': '호스트만 강퇴할 수 있습니다.'}), 403
+    if party.status == StatusEnum.COMPLETED:
+        return jsonify({'message': '종료된 파티에서는 강퇴할 수 없습니다.'}), 400
     
     member = PartyMember.query.filter_by(party_id=party_id, user_id=target_user_id, is_host=False).first_or_404()
     db.session.delete(member)
@@ -1138,7 +1163,8 @@ def kick_member(party_id, target_user_id):
         db.session.commit()
         return jsonify({'message': '강퇴 후 파티원이 없어 파티가 삭제되었습니다.'}), 200
 
-    if party.status == StatusEnum.CLOSED:
+    remaining_count = PartyMember.query.filter_by(party_id=party_id).count()
+    if not party.is_manual_close and party.status == StatusEnum.CLOSED and remaining_count < party.max_people:
         party.status = StatusEnum.RECRUITING
 
     db.session.commit()
@@ -1154,8 +1180,10 @@ def finish_party(party_id):
     
     if party.host_id != current_user_id:
         return jsonify({'message': '호스트만 종료할 수 있습니다.'}), 403
+    if len(party.members) < 2:
+        return jsonify({'message': '파티 종료는 2인 이상 참여 시 가능합니다.'}), 400
         
-    party.status = StatusEnum.COMPLETED
+    party.complete_party()
     db.session.commit()
     return jsonify({'message': '모임이 종료되었습니다.'}), 200
 
@@ -1188,6 +1216,8 @@ def report_user(party_id):
 
     if report_count >= 3:
         party = Party.query.get_or_404(party_id)
+        if party.status == StatusEnum.COMPLETED:
+            return jsonify({'message': '신고가 접수되었습니다. 종료된 파티에서는 자동 강퇴되지 않습니다.', 'kicked': False}), 201
         target_user = User.query.get_or_404(target_id)
         
         if target_user not in party.kicked_users:
@@ -1195,6 +1225,10 @@ def report_user(party_id):
             member = PartyMember.query.filter_by(party_id=party_id, user_id=target_id).first()
             if member:
                 db.session.delete(member)
+                db.session.flush()
+                remaining_count = PartyMember.query.filter_by(party_id=party_id).count()
+                if not party.is_manual_close and party.status == StatusEnum.CLOSED and remaining_count < party.max_people:
+                    party.status = StatusEnum.RECRUITING
             db.session.commit()
             return jsonify({'message': '신고가 3회 누적되어 해당 유저가 자동 강퇴되었습니다.', 'kicked': True}), 200
 
@@ -2090,6 +2124,14 @@ def handle_send_message(data):
         return
 
     try:
+        party = Party.query.get(int(room_id))
+        if not party:
+            socket_emit('error', {'message': '파티를 찾을 수 없습니다.'})
+            return
+        if is_party_chat_locked(party):
+            socket_emit('error', {'message': '파티 종료 후 7일이 지나 채팅이 비활성화되었습니다.'})
+            return
+
         msg = ChatMessage(
             party_id=int(room_id),
             sender_id=int(sender_id),
@@ -2129,6 +2171,8 @@ def leave_party(party_id):
     
     if not member:
         return jsonify({'message': '파티 참여자가 아닙니다.'}), 404
+    if party.status == StatusEnum.COMPLETED:
+        return jsonify({'message': '종료된 파티에서는 탈퇴할 수 없습니다.'}), 400
     if member.is_host:
         return jsonify({'message': '호스트는 탈퇴할 수 없습니다. 파티를 종료하거나 취소해주세요.'}), 403
 

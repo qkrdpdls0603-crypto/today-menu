@@ -312,7 +312,7 @@ export default function MyPageEdit() {
                       onClick={handleAddressSearch}
                       className="h-12 flex-shrink-0 rounded-2xl border border-[#FAD0D1] bg-[#FEEDEC] px-5 text-sm font-extrabold text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white max-[540px]:w-full max-[540px]:active:border-[var(--color-primary)] max-[540px]:active:bg-[var(--color-primary)] max-[540px]:active:text-white"
                     >
-                      🔍 주소 검색
+                    주소 검색
                     </button>
                   </div>
 
@@ -337,7 +337,7 @@ export default function MyPageEdit() {
                         type="button"
                         key={g}
                         onClick={() => setForm({ ...form, gender: g })}
-                        className={`h-10 rounded-2xl border text-[.88rem] font-bold transition ${form.gender === g
+                        className={`h-12 rounded-2xl border text-[.88rem] font-bold transition ${form.gender === g
                           ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-[0_8px_18px_rgba(244,108,111,0.22)]'
                           : 'border-[var(--border-color)] bg-white text-[var(--text-secondary)] hover:border-[var(--color-primary)]'
                           }`}
@@ -493,22 +493,22 @@ export default function MyPageEdit() {
           <section className="grid gap-5 lg:grid-cols-2">
             {/* 보안 질문 */}
             <div className="rounded-[22px] border border-[var(--border-color)] bg-[#fffdf9] p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <label className="text-base font-extrabold text-[var(--text-primary)]">
+              <div className="flex min-h-9 items-center justify-between gap-3">
+                <label className="flex min-h-9 items-center text-base font-extrabold leading-none text-[var(--text-primary)]">
                   🔑 아이디 찾기 설정
                 </label>
 
                 <button
                   type="button"
                   onClick={() => setIsEditingSecurity(!isEditingSecurity)}
-                  className="rounded-full bg-[#FEEDEC] px-4 py-2 text-xs font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+                  className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-[#FEEDEC] px-4 text-xs font-bold leading-none text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
                 >
                   {isEditingSecurity ? '설정 취소' : '설정하기  ›'}
                 </button>
               </div>
 
               {isEditingSecurity && (
-                <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="mt-4 space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
                   <label className="form-label">아이디 찾기용 보안 질문</label>
                   <select
                     className="form-control mb-3"
@@ -561,8 +561,8 @@ export default function MyPageEdit() {
 
             {/* 🔐 비밀번호 변경 */}
             <div className="rounded-[22px] border border-[var(--border-color)] bg-[#fffdf9] p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <label className="text-base font-extrabold text-[var(--text-primary)]">
+              <div className="flex min-h-9 items-center justify-between gap-3">
+                <label className="flex min-h-9 items-center text-base font-extrabold leading-none text-[var(--text-primary)]">
                   🔐 비밀번호 변경
                 </label>
 
@@ -572,14 +572,14 @@ export default function MyPageEdit() {
                     setIsChangingPassword(!isChangingPassword)
                     setIsPasswordValidated(false)
                   }}
-                  className="rounded-full bg-[#FEEDEC] px-4 py-2 text-xs font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+                  className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-[#FEEDEC] px-4 text-xs font-bold leading-none text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
                 >
                   {isChangingPassword ? '변경 취소' : '설정하기  ›'}
                 </button>
               </div>
 
               {isChangingPassword && (
-                <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="mt-4 space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
 
                   <div>
                     <label className="mb-1 block text-sm font-semibold">
