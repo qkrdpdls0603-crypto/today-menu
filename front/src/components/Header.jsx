@@ -10,7 +10,6 @@ const NAV_LINKS = [
   { to: '/menu', label: '맛집 찾기' },
   { to: '/party', label: '밥친구' },
   { to: '/game', label: '게임찾기' },
-  {to: '/mypage', label: '마이페이지'},
 ]
 
 const pageContainer = 'container'
