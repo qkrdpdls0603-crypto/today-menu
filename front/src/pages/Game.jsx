@@ -1295,12 +1295,12 @@ function Ladder({ menus, allMenus = [] }) {
         {/* 버튼 */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={loadRandom} disabled={fetching}
-            style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--color-primary)', background: '#FFF5F5', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '.85rem' }}>
+            style={{ padding: '10px 18px', borderRadius: 8, border: '1.5px solid var(--color-primary)', background: '#FFF5F5', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '.85rem', minHeight: 44 }}>
             {fetching ? '...' : '🎲 랜덤 메뉴'}
           </button>
           {items.length >= 2 && (
             <button onClick={regenerate}
-              className='inline-flex min-h-[44px] items-center justify-center mt-[12px] mr-[15px] gap-2 rounded-[12px] bg-[var(--bg-surface)] px-6 text-[0.94rem] font-black text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 hover:bg-[var(--color-accent)]'>
+              style={{ padding: '10px 18px', borderRadius: 8, border: '1.5px solid var(--color-primary)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '.85rem', minHeight: 44 }}>
               사다리 재생성
             </button>
           )}
