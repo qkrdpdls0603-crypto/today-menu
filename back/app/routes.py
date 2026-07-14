@@ -213,13 +213,35 @@ def get_trending_data():
         .limit(8)
         .all()
     )
-    
+
+    viewer_id = None
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            from flask_jwt_extended import decode_token
+            token_data = decode_token(auth_header.split(' ')[1])
+            viewer_id  = int(token_data['sub'])
+        except Exception:
+            pass
+
     results = []
     for r in trending:
         count = db.session.query(sa_func.count(RecommendationLog.log_id))\
             .filter(RecommendationLog.recommended_restaurant_id == r.restaurant_id, 
                     RecommendationLog.is_liked == True).scalar()
-        results.append(serialize_restaurant(r, like_count=count))
+
+        is_liked = False
+        log_id = None
+        if viewer_id:
+            log = RecommendationLog.query.filter_by(
+                user_id=viewer_id,
+                recommended_restaurant_id=r.restaurant_id
+            ).first()
+            if log:
+                is_liked = getattr(log, 'is_liked', True)
+                log_id = log.log_id
+
+        results.append(serialize_restaurant(r, like_count=count, is_liked=is_liked, log_id=log_id))
         
     return jsonify({'items': results})
 
@@ -1130,8 +1152,8 @@ def join_party(party_id):
             'occurred_at':  occurred_at,
         }
         _sio.emit('party_member_joined', payload, room=f'party_{party_id}')
-    except Exception as e:
-        print(f"[socket] party_member_joined emit 실패: {e}")
+    except Exception:
+        pass
 
     return jsonify({'message': '파티에 참여했습니다! 매너온도 +0.5°', 'manner_score': user.manner_score}), 200
 
@@ -2243,8 +2265,8 @@ def leave_party(party_id):
                 'occurred_at':  occurred_at,
             }
             _sio.emit('party_member_left', payload, room=f'party_{party_id}')
-        except Exception as e:
-            print(f"[socket] party_member_left(자동삭제) emit 실패: {e}")
+        except Exception:
+            pass
         return jsonify({'message': '파티를 탈퇴했습니다. 마지막 멤버이므로 파티가 자동 삭제되었습니다.'}), 200
     
     db.session.commit()
@@ -2267,8 +2289,8 @@ def leave_party(party_id):
             'occurred_at':  occurred_at,
         }
         _sio.emit('party_member_left', payload, room=f'party_{party_id}')
-    except Exception as e:
-        print(f"[socket] party_member_left emit 실패: {e}")
+    except Exception:
+        pass
     return jsonify({'message': '파티에서 탈퇴했습니다.'}), 200
 
 
