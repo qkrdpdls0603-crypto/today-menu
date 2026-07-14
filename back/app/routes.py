@@ -1064,20 +1064,6 @@ def get_party(party_id):
     return jsonify(data)
 
 
-@party_bp.route('/<int:party_id>', methods=['DELETE'])
-@jwt_login_required
-def delete_party(party_id):
-    user_id = int(get_jwt_identity())
-    party = Party.query.get_or_404(party_id)
-    if party.host_id != user_id:
-        return jsonify({'message': '호스트만 파티를 삭제할 수 있습니다.'}), 403
-    if len(party.members) > 1:
-        return jsonify({'message': '참여 중인 파티원이 있어 삭제할 수 없습니다.'}), 400
-    db.session.delete(party)
-    db.session.commit()
-    return jsonify({'message': '파티가 삭제되었습니다.'}), 200
-
-
 @party_bp.route('/', methods=['POST'])
 @jwt_login_required
 def create_party():
@@ -1144,8 +1130,8 @@ def join_party(party_id):
             'occurred_at':  occurred_at,
         }
         _sio.emit('party_member_joined', payload, room=f'party_{party_id}')
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[socket] party_member_joined emit 실패: {e}")
 
     return jsonify({'message': '파티에 참여했습니다! 매너온도 +0.5°', 'manner_score': user.manner_score}), 200
 
@@ -2257,8 +2243,8 @@ def leave_party(party_id):
                 'occurred_at':  occurred_at,
             }
             _sio.emit('party_member_left', payload, room=f'party_{party_id}')
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[socket] party_member_left(자동삭제) emit 실패: {e}")
         return jsonify({'message': '파티를 탈퇴했습니다. 마지막 멤버이므로 파티가 자동 삭제되었습니다.'}), 200
     
     db.session.commit()
@@ -2281,8 +2267,8 @@ def leave_party(party_id):
             'occurred_at':  occurred_at,
         }
         _sio.emit('party_member_left', payload, room=f'party_{party_id}')
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[socket] party_member_left emit 실패: {e}")
     return jsonify({'message': '파티에서 탈퇴했습니다.'}), 200
 
 
@@ -2682,6 +2668,6 @@ def get_my_favorites():
                 'category':   f.restaurant.category,
                 'avg_rating': f.restaurant.avg_rating,
                 'address':    f.restaurant.address or '',
-                'image':      getattr(f.restaurant, 'image_url', None),
+                'image':      getattr(f.restaurant, 'image', None),
             })
     return jsonify(result), 200
