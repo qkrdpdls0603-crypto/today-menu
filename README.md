@@ -147,13 +147,15 @@
 ## 화면 구성
 
 ### 홈 화면
-![홈 화면](./docs/screenshots/Home.png) | ![홈(모바일)](./docs/screenshots/mobile_Home.png) |
+| 홈 화면 | 홈(모바일) |
+|---|---|
+| ![홈 화면](./docs/screenshots/Home.png) | ![홈(모바일)](./docs/screenshots/mobile_Home.png) |
 
 ### 로그인 / 회원가입
 | 로그인 | 회원가입 |
 |---|---|
 | ![로그인](./docs/screenshots/login.jpeg) | ![회원가입](./docs/screenshots/register.jpeg) |
-| ![로그인(모바일)](./docs/screenshots/login_m.png) | ![회원가입(모바일)](./docs/screenshots/register_m.png) |
+| ![로그인(모바일)](./docs/screenshots/login_m.png) | ![회원가입(모바일)](./docs/screenshots/register.png) |
 
 ### 메뉴 목록 / 상세
 | 메뉴 목록 | 메뉴 상세 + 리뷰 |
@@ -189,8 +191,8 @@
 | ![스무고개](./docs/screenshots/game_20tree.png) | ![뽑기](./docs/screenshots/game_ticket.png) |
 | ![스무고개(모바일)](./docs/screenshots/mobile_20tree.png) | ![뽑기(모바일)](./docs/screenshots/mobile_game_ticket.png) |
 
-| 사다리 |
-|---|
+| 사다리 | 사다리(모바일) |
+|---|---|
 | ![사다리](./docs/screenshots/gmae_ladder.png) | ![사다리(모바일)](./docs/screenshots/mobile_ladder.png) |
 
 ### 고객센터 / 관리자
