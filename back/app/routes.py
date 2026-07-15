@@ -1113,11 +1113,15 @@ def create_party():
     if not title or not rest_id or not mt_str:
         return jsonify({'message': '필수 항목을 입력해주세요.'}), 400
 
+    meeting_time = datetime.fromisoformat(mt_str)
+    if meeting_time < datetime.now():
+        return jsonify({'message': '현재 시간 이후로 약속 일시를 선택해주세요.'}), 400
+
     party = Party(
         title=title,
         restaurant_id=rest_id,
         host_id=host_id,
-        meeting_time=datetime.fromisoformat(mt_str),
+        meeting_time=meeting_time,
         max_people=max_ppl,
     )
     db.session.add(party)

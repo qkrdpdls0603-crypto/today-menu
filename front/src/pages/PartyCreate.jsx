@@ -39,8 +39,10 @@ export default function PartyCreate() {
       alert('약속 일시를 선택해주세요.')
       return
     }
+
     if (new Date(form.meeting_time) <= new Date()) {
       alert('약속 일시는 현재 시간 이후로 설정해주세요.')
+
       return
     }
     setLoading(true)
@@ -69,10 +71,45 @@ export default function PartyCreate() {
   const meetingPeriod = meetingHourNumber >= 12 ? 'PM' : 'AM'
   const meetingHour12 = String(meetingHourNumber % 12 || 12).padStart(2, '0')
   const todayISO = getNowISO().slice(0, 10)
+  const getNextSelectableTime = () => {
+    const now = new Date()
+    now.setSeconds(0, 0)
+    now.setMinutes(Math.ceil(now.getMinutes() / 5) * 5)
+    const offset = now.getTimezoneOffset() * 60000
+    const localISOTime = new Date(now - offset).toISOString().slice(0, 16)
+    return {
+      date: localISOTime.slice(0, 10),
+      hour: localISOTime.slice(11, 13),
+      minute: localISOTime.slice(14, 16),
+    }
+  }
+
+  const isPastMeetingTime = (date, hour, minute) => {
+    if (!date || !hour || !minute) return false
+    return new Date(`${date}T${hour}:${minute}`) < new Date()
+  }
+
+  const isHourDisabled = (hour) => {
+    const date = meetingDate || todayISO
+    if (date !== todayISO) return false
+    return TIME_MINUTES.every((minute) => isPastMeetingTime(date, hour, minute))
+  }
+
+  const isMinuteDisabled = (minute, hour = meetingHour || '12') => {
+    const date = meetingDate || todayISO
+    if (date !== todayISO) return false
+    return isPastMeetingTime(date, hour, minute)
+  }
 
   const setMeetingDate = (date) => {
     const time = meetingTime || '12:00'
-    setForm({ ...form, meeting_time: date ? `${date}T${time}` : '' })
+    const nextTime = `${date}T${time}`
+    if (date === todayISO && new Date(nextTime) < new Date()) {
+      const next = getNextSelectableTime()
+      setForm({ ...form, meeting_time: `${next.date}T${next.hour}:${next.minute}` })
+      return
+    }
+    setForm({ ...form, meeting_time: date ? nextTime : '' })
   }
 
   // 날짜 input은 기본적으로 달력 아이콘을 눌러야만 피커가 열리는데,
@@ -87,6 +124,11 @@ export default function PartyCreate() {
 
   const setMeetingTimePart = (nextHour = meetingHour || '12', nextMinute = meetingMinute || '00') => {
     const date = meetingDate || todayISO
+    if (isPastMeetingTime(date, nextHour, nextMinute)) {
+      const next = getNextSelectableTime()
+      setForm({ ...form, meeting_time: `${next.date}T${next.hour}:${next.minute}` })
+      return
+    }
     setForm({ ...form, meeting_time: `${date}T${nextHour}:${nextMinute}` })
   }
 
@@ -225,9 +267,16 @@ export default function PartyCreate() {
                     value={meetingHour12}
                     onChange={(e) => setMeetingTime12Part(meetingPeriod, e.target.value, meetingMinute || '00')}
                   >
-                    {TIME_HOURS_12.map((hour) => (
-                      <option key={hour} value={hour}>{hour}</option>
-                    ))}
+                    {TIME_HOURS_12.map((hour) => {
+                      const hourNumber = Number(hour)
+                      const hour24 = meetingPeriod === 'PM'
+                        ? (hourNumber === 12 ? 12 : hourNumber + 12)
+                        : (hourNumber === 12 ? 0 : hourNumber)
+                      const hourValue = String(hour24).padStart(2, '0')
+                      return (
+                        <option key={hour} value={hour} disabled={isHourDisabled(hourValue)}>{hour}</option>
+                      )
+                    })}
                   </select>
                   <select
                     className="h-14 min-w-0 rounded-2xl border border-[var(--border-color)] bg-white px-2 text-center text-sm font-semibold text-[var(--text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_rgba(244,108,111,0.16)]"
@@ -236,7 +285,7 @@ export default function PartyCreate() {
                   >
                     <option value="" disabled>분</option>
                     {TIME_MINUTES.map((minute) => (
-                      <option key={minute} value={minute}>{minute}</option>
+                      <option key={minute} value={minute} disabled={isMinuteDisabled(minute)}>{minute}</option>
                     ))}
                   </select>
                 </div>
@@ -256,7 +305,7 @@ export default function PartyCreate() {
                   >
                     <option value="" disabled>시</option>
                     {TIME_HOURS.map((hour) => (
-                      <option key={hour} value={hour}>{hour}</option>
+                      <option key={hour} value={hour} disabled={isHourDisabled(hour)}>{hour}</option>
                     ))}
                   </select>
                   <select
@@ -266,7 +315,7 @@ export default function PartyCreate() {
                   >
                     <option value="" disabled>분</option>
                     {TIME_MINUTES.map((minute) => (
-                      <option key={minute} value={minute}>{minute}</option>
+                      <option key={minute} value={minute} disabled={isMinuteDisabled(minute)}>{minute}</option>
                     ))}
                   </select>
                 </div>
