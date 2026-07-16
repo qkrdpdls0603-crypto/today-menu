@@ -23,7 +23,7 @@
 
 ## 앱 다운로드 (APK)
 
-[안드로이드 앱 다운로드](https://drive.google.com/file/d/1gcNP9QLxHaAnNuIyRJ7z6JzORYqPuqIK/view?usp=sharing))
+[안드로이드 앱 다운로드]((https://drive.google.com/file/d/1gcNP9QLxHaAnNuIyRJ7z6JzORYqPuqIK/view?usp=sharing))
 
 > Play 스토어 미출시 앱이라 설치 시 "출처를 알 수 없는 앱" 경고가 뜰 수 있습니다. 설정에서 허용 후 설치해주세요.
 
