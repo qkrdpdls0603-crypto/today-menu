@@ -443,11 +443,11 @@ npx cap open android   # Android Studio에서 Run 또는 Build → Generate APKs
 
 | 역할 | 이름 |
 |---|---|
-| PM / 기획 | |
-| Frontend | |
-| Backend | |
-| Design | |
-| Full-Stack | |
+| 팀장/Backend |김도철|
+| Frontend/Design |조예연|
+| Frontend |이원호|
+| Full-Stack |박예인|
+| Full-Stack |서창환|
 
 ---
 
