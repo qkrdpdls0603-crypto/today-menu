@@ -1,5 +1,6 @@
 # 1단계: 빌드
 FROM node:20 AS build
+
 WORKDIR /app
 
 COPY package*.json ./

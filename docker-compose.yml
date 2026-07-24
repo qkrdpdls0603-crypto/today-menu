@@ -36,6 +36,19 @@ services:
     networks:
       - app-network
 
+  frontend:
+    build:
+      context: ./front
+      args:
+        VITE_API_URL: http://localhost:5000
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge

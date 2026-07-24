@@ -333,10 +333,14 @@ def main():
         print("\n[3단계] CSV 임포트 건너뜀 (--skip-csv)")
 
     menu_csv_path = Path(args.menu_csv)
+
+    if not menu_csv_path.is_absolute():
+        menu_csv_path = Path(__file__).parent / menu_csv_path
+
     if menu_csv_path.exists():
         step_extra_menu_import(str(menu_csv_path))
     else:
-        print(f" ⚠️ 메뉴 파일 없음, 건너뜀: {args.menu_csv}")
+        print(f" ⚠️ 메뉴 파일 없음, 건너뜀: {menu_csv_path}")
 
     if not args.skip_users:
         step4_seed_test_users()

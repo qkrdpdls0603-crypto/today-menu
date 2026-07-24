@@ -22,6 +22,8 @@ def _allowed_origins():
         'capacitor://localhost',
         'http://localhost',
         'https://localhost',
+        'https://today-menu-too.vercel.app',
+        'https://*.vercel.app',
     ]
     extra = [o.strip() for o in os.environ.get('ALLOWED_ORIGINS', '').split(',') if o.strip()]
     return list(set(base + extra))
