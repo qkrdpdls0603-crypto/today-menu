@@ -1,5 +1,6 @@
 # 1단계: 빌드
-FROM node:18 AS build
+FROM node:20 AS build
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -7,7 +8,6 @@ RUN npm install
 
 COPY . .
 
-# Vite는 빌드 시점에 환경변수를 결과물에 박아넣기 때문에 build arg로 받는다
 ARG VITE_API_URL=http://localhost:5000
 ENV VITE_API_URL=$VITE_API_URL
 
