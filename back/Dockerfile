@@ -16,4 +16,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+CMD ["sh", "-c", "python seed.py --skip-csv --skip-users && python run.py"]
